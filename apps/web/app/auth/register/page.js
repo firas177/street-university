@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { loginUser } from "../../lib/api";
+import { registerUser } from "../../lib/api";
 
 function EyeIcon({ size = 20 }) {
   return (
@@ -43,38 +43,65 @@ function EyeOffIcon({ size = 20 }) {
   );
 }
 
-export default function LoginPage() {
+export default function RegisterPage() {
   const router = useRouter();
 
+  const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+
   const [showPwd, setShowPwd] = useState(false);
+  const [showConfirmPwd, setShowConfirmPwd] = useState(false);
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
 
   async function handleSubmit(e) {
     e.preventDefault();
     setError("");
+    setSuccess("");
+
+    if (password !== confirmPassword) {
+      setError("Les deux mots de passe doivent être identiques.");
+      return;
+    }
+
+    if (password.length < 8) {
+      setError("Le mot de passe doit contenir au moins 8 caractères.");
+      return;
+    }
+
     setLoading(true);
 
     try {
-      const data = await loginUser({ email, password });
-      localStorage.setItem("token", data.access_token);
-      router.push("/dashboard/profile");
+      await registerUser({
+        full_name: fullName,
+        email,
+        password,
+      });
+
+      setSuccess("Compte créé avec succès. Redirection vers la connexion...");
+      setTimeout(() => {
+        router.push("/auth/login");
+      }, 1000);
     } catch (err) {
-      setError(err?.message || "Email ou mot de passe incorrect");
+      setError(err?.message || "Erreur lors de la création du compte");
     } finally {
       setLoading(false);
     }
   }
+
+  const passwordsMatch =
+    confirmPassword.length > 0 && password === confirmPassword;
 
   return (
     <div
       style={{
         minHeight: "100vh",
         background:
-          "radial-gradient(circle at top left, #dbeafe 0%, #eff6ff 30%, #f8fafc 70%, #ffffff 100%)",
+          "radial-gradient(circle at top right, #dbeafe 0%, #eff6ff 30%, #f8fafc 70%, #ffffff 100%)",
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
@@ -84,7 +111,7 @@ export default function LoginPage() {
       <div
         style={{
           width: "100%",
-          maxWidth: "480px",
+          maxWidth: "520px",
           background: "rgba(255,255,255,0.88)",
           backdropFilter: "blur(10px)",
           borderRadius: "28px",
@@ -118,15 +145,46 @@ export default function LoginPage() {
               lineHeight: 1.05,
             }}
           >
-            Connexion
+            Créer un compte
           </h1>
 
           <p style={{ marginTop: "12px", color: "#64748b", fontSize: "16px", lineHeight: 1.5 }}>
-            Connecte-toi pour accéder à ton espace et poursuivre ton parcours.
+            Rejoins la plateforme et commence ton parcours.
           </p>
         </div>
 
-        <form onSubmit={handleSubmit} style={{ display: "grid", gap: "18px" }}>
+        <form onSubmit={handleSubmit} style={{ display: "grid", gap: "16px" }}>
+          <div>
+            <label
+              htmlFor="fullName"
+              style={{
+                display: "block",
+                marginBottom: "8px",
+                fontWeight: "700",
+                color: "#1e293b",
+              }}
+            >
+              Nom complet
+            </label>
+            <input
+              id="fullName"
+              type="text"
+              placeholder="ex: Nada Aissi"
+              value={fullName}
+              onChange={(e) => setFullName(e.target.value)}
+              required
+              style={{
+                width: "100%",
+                padding: "15px 16px",
+                borderRadius: "16px",
+                border: "1px solid #cbd5e1",
+                background: "#f8fafc",
+                outline: "none",
+                fontSize: "15px",
+              }}
+            />
+          </div>
+
           <div>
             <label
               htmlFor="email"
@@ -139,7 +197,6 @@ export default function LoginPage() {
             >
               Email
             </label>
-
             <input
               id="email"
               type="email"
@@ -155,7 +212,6 @@ export default function LoginPage() {
                 background: "#f8fafc",
                 outline: "none",
                 fontSize: "15px",
-                transition: "0.2s",
               }}
             />
           </div>
@@ -177,7 +233,7 @@ export default function LoginPage() {
               <input
                 id="password"
                 type={showPwd ? "text" : "password"}
-                placeholder="••••••••"
+                placeholder="Minimum 8 caractères"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
@@ -194,7 +250,7 @@ export default function LoginPage() {
 
               <button
                 type="button"
-                onClick={() => setShowPwd((v) => !v)}
+                onClick={() => setShowPwd(!showPwd)}
                 style={{
                   position: "absolute",
                   right: "12px",
@@ -204,14 +260,78 @@ export default function LoginPage() {
                   border: "none",
                   cursor: "pointer",
                   color: "#475569",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
                 }}
               >
                 {showPwd ? <EyeOffIcon /> : <EyeIcon />}
               </button>
             </div>
+          </div>
+
+          <div>
+            <label
+              htmlFor="confirmPassword"
+              style={{
+                display: "block",
+                marginBottom: "8px",
+                fontWeight: "700",
+                color: "#1e293b",
+              }}
+            >
+              Confirmer le mot de passe
+            </label>
+
+            <div style={{ position: "relative" }}>
+              <input
+                id="confirmPassword"
+                type={showConfirmPwd ? "text" : "password"}
+                placeholder="Retape le mot de passe"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                required
+                style={{
+                  width: "100%",
+                  padding: "15px 52px 15px 16px",
+                  borderRadius: "16px",
+                  border: passwordsMatch
+                    ? "1px solid #86efac"
+                    : "1px solid #cbd5e1",
+                  background: "#f8fafc",
+                  outline: "none",
+                  fontSize: "15px",
+                }}
+              />
+
+              <button
+                type="button"
+                onClick={() => setShowConfirmPwd(!showConfirmPwd)}
+                style={{
+                  position: "absolute",
+                  right: "12px",
+                  top: "50%",
+                  transform: "translateY(-50%)",
+                  background: "transparent",
+                  border: "none",
+                  cursor: "pointer",
+                  color: "#475569",
+                }}
+              >
+                {showConfirmPwd ? <EyeOffIcon /> : <EyeIcon />}
+              </button>
+            </div>
+
+            {confirmPassword.length > 0 && (
+              <p
+                style={{
+                  marginTop: "8px",
+                  fontSize: "13px",
+                  color: passwordsMatch ? "#15803d" : "#b91c1c",
+                }}
+              >
+                {passwordsMatch
+                  ? "Les mots de passe correspondent."
+                  : "Les mots de passe ne correspondent pas."}
+              </p>
+            )}
           </div>
 
           {error && (
@@ -226,6 +346,21 @@ export default function LoginPage() {
               }}
             >
               {error}
+            </div>
+          )}
+
+          {success && (
+            <div
+              style={{
+                background: "#ecfdf5",
+                color: "#047857",
+                padding: "13px 14px",
+                borderRadius: "14px",
+                fontSize: "14px",
+                border: "1px solid #a7f3d0",
+              }}
+            >
+              {success}
             </div>
           )}
 
@@ -246,14 +381,14 @@ export default function LoginPage() {
               opacity: loading ? 0.75 : 1,
             }}
           >
-            {loading ? "Connexion..." : "Se connecter"}
+            {loading ? "Création..." : "Créer le compte"}
           </button>
         </form>
 
         <p style={{ marginTop: "20px", color: "#64748b", fontSize: "14px" }}>
-          Pas de compte ?
+          Déjà un compte ?
           <a
-            href="/auth/register"
+            href="/auth/login"
             style={{
               color: "#2563eb",
               fontWeight: "700",
@@ -261,7 +396,7 @@ export default function LoginPage() {
               textDecoration: "none",
             }}
           >
-            Créer un compte
+            Se connecter
           </a>
         </p>
       </div>
