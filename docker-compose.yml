@@ -1,0 +1,37 @@
+services:
+  db:
+    image: postgres:16
+    container_name: streetu_db
+    environment:
+      POSTGRES_USER: streetu
+      POSTGRES_PASSWORD: streetu_pw
+      POSTGRES_DB: streetu
+    ports:
+      - "5432:5432"
+    volumes:
+      - streetu_pgdata:/var/lib/postgresql/data
+
+  api:
+    build: ./services/api
+    container_name: streetu_api
+    environment:
+      DATABASE_URL: postgresql+psycopg://streetu:streetu_pw@db:5432/streetu
+    
+      - "8000:8000"
+    depends_on:
+      - db
+   
+    
+
+  web:
+    build: ./apps/web
+    container_name: streetu_web
+    environment:
+      NEXT_PUBLIC_API_URL: http://localhost:8000
+    ports:
+      - "3000:3000"
+    depends_on:
+      - api
+
+volumes:
+  streetu_pgdata:
