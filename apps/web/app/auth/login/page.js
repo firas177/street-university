@@ -1,44 +1,47 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
+import Card from "../../components/ui/Card";
+import Button from "../../components/ui/Button";
+import Alert from "../../components/ui/Alert";
 import { loginUser } from "../../lib/api";
 
-function EyeIcon({ size = 20 }) {
+function EyeIcon() {
   return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none">
-      <path
-        d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z"
-        stroke="currentColor"
-        strokeWidth="2"
-      />
-      <circle cx="12" cy="12" r="3" stroke="currentColor" strokeWidth="2" />
+    <svg
+      width="20"
+      height="20"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z" />
+      <circle cx="12" cy="12" r="3" />
     </svg>
   );
 }
 
-function EyeOffIcon({ size = 20 }) {
+function EyeOffIcon() {
   return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none">
-      <path d="M3 3l18 18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-      <path
-        d="M10.6 10.6A3 3 0 0 0 12 15a3 3 0 0 0 2.4-4.4"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-      />
-      <path
-        d="M5.2 5.2C3.3 6.7 2 8.7 2 12c0 0 3.5 7 10 7 2 0 3.7-.6 5.1-1.5"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-      />
-      <path
-        d="M8.3 8.3C9.4 7.5 10.7 7 12 7c6.5 0 10 5 10 5s-1.1 2.2-3.3 3.9"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-      />
+    <svg
+      width="20"
+      height="20"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M17.94 17.94A10.94 10.94 0 0 1 12 19C5.5 19 2 12 2 12a21.8 21.8 0 0 1 5.06-6.94" />
+      <path d="M9.9 4.24A10.94 10.94 0 0 1 12 5c6.5 0 10 7 10 7a21.3 21.3 0 0 1-2.17 3.19" />
+      <path d="M14.12 14.12A3 3 0 0 1 9.88 9.88" />
+      <path d="M3 3l18 18" />
     </svg>
   );
 }
@@ -46,224 +49,414 @@ function EyeOffIcon({ size = 20 }) {
 export default function LoginPage() {
   const router = useRouter();
 
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [showPwd, setShowPwd] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
-  const [loading, setLoading] = useState(false);
+  const [form, setForm] = useState({
+    email: "",
+    password: "",
+  });
+
+  const [errors, setErrors] = useState({});
   const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    function handleResize() {
+      setIsMobile(window.innerWidth < 900);
+    }
+
+    handleResize();
+    window.addEventListener("resize", handleResize);
+
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
+
+  function validateForm() {
+    const newErrors = {};
+
+    if (!form.email.trim()) {
+      newErrors.email = "L’email est obligatoire.";
+    } else if (!/\S+@\S+\.\S+/.test(form.email)) {
+      newErrors.email = "Veuillez entrer un email valide.";
+    }
+
+    if (!form.password.trim()) {
+      newErrors.password = "Le mot de passe est obligatoire.";
+    } else if (form.password.length < 6) {
+      newErrors.password = "Le mot de passe doit contenir au moins 6 caractères.";
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  }
+
+  function handleChange(e) {
+    const { name, value } = e.target;
+
+    setForm((prev) => ({
+      ...prev,
+      [name]: value,
+    }));
+
+    setErrors((prev) => ({
+      ...prev,
+      [name]: "",
+    }));
+
+    setError("");
+  }
 
   async function handleSubmit(e) {
     e.preventDefault();
-    setError("");
+
+    if (!validateForm()) return;
+
     setLoading(true);
+    setError("");
 
     try {
-      const data = await loginUser({ email, password });
-      localStorage.setItem("token", data.access_token);
-      router.push("/dashboard/profile");
+      const data = await loginUser({
+        email: form.email,
+        password: form.password,
+      });
+
+      const token = data?.access_token || data?.token;
+
+      if (!token) {
+        throw new Error("Token non reçu depuis le backend.");
+      }
+
+      localStorage.setItem("token", token);
+      router.push("/dashboard");
     } catch (err) {
-      setError(err?.message || "Email ou mot de passe incorrect");
+      setError(err?.message || "Échec de connexion.");
     } finally {
       setLoading(false);
     }
   }
 
+  const inputStyle = {
+    width: "100%",
+    boxSizing: "border-box",
+    padding: "14px 16px",
+    borderRadius: "16px",
+    border: "1px solid #cbd5e1",
+    outline: "none",
+    fontSize: "15px",
+    background: "#f8fafc",
+    color: "#0f172a",
+  };
+
   return (
     <div
       style={{
         minHeight: "100vh",
-        background:
-          "radial-gradient(circle at top left, #dbeafe 0%, #eff6ff 30%, #f8fafc 70%, #ffffff 100%)",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        padding: "24px",
+        display: "grid",
+        gridTemplateColumns: isMobile ? "1fr" : "1.05fr 0.95fr",
+        background: "#f8fafc",
       }}
     >
-      <div
-        style={{
-          width: "100%",
-          maxWidth: "480px",
-          background: "rgba(255,255,255,0.88)",
-          backdropFilter: "blur(10px)",
-          borderRadius: "28px",
-          padding: "34px",
-          boxShadow: "0 25px 60px rgba(15,23,42,0.12)",
-          border: "1px solid rgba(226,232,240,0.9)",
-        }}
-      >
-        <div style={{ marginBottom: "24px" }}>
+      {!isMobile && (
+        <div
+          style={{
+            position: "relative",
+            overflow: "hidden",
+            background:
+              "radial-gradient(circle at top left, rgba(59,130,246,0.25), transparent 35%), linear-gradient(135deg, #0f172a, #1e293b)",
+            color: "#ffffff",
+            padding: "48px",
+            display: "flex",
+            flexDirection: "column",
+            justifyContent: "space-between",
+          }}
+        >
           <div
             style={{
-              display: "inline-block",
-              padding: "6px 12px",
+              position: "absolute",
+              top: "-80px",
+              right: "-80px",
+              width: "220px",
+              height: "220px",
               borderRadius: "999px",
-              background: "#eff6ff",
-              color: "#1d4ed8",
-              fontSize: "13px",
-              fontWeight: "700",
-              marginBottom: "16px",
+              background: "rgba(255,255,255,0.08)",
             }}
-          >
-            Street University
-          </div>
-
-          <h1
+          />
+          <div
             style={{
-              fontSize: "44px",
-              margin: 0,
-              fontWeight: "800",
-              color: "#0f172a",
-              lineHeight: 1.05,
+              position: "absolute",
+              bottom: "60px",
+              left: "-60px",
+              width: "180px",
+              height: "180px",
+              borderRadius: "999px",
+              background: "rgba(59,130,246,0.18)",
             }}
-          >
-            Connexion
-          </h1>
+          />
 
-          <p style={{ marginTop: "12px", color: "#64748b", fontSize: "16px", lineHeight: 1.5 }}>
-            Connecte-toi pour accéder à ton espace et poursuivre ton parcours.
-          </p>
-        </div>
-
-        <form onSubmit={handleSubmit} style={{ display: "grid", gap: "18px" }}>
-          <div>
-            <label
-              htmlFor="email"
-              style={{
-                display: "block",
-                marginBottom: "8px",
-                fontWeight: "700",
-                color: "#1e293b",
-              }}
-            >
-              Email
-            </label>
-
-            <input
-              id="email"
-              type="email"
-              placeholder="ex: test@gmail.com"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-              style={{
-                width: "100%",
-                padding: "15px 16px",
-                borderRadius: "16px",
-                border: "1px solid #cbd5e1",
-                background: "#f8fafc",
-                outline: "none",
-                fontSize: "15px",
-                transition: "0.2s",
-              }}
-            />
-          </div>
-
-          <div>
-            <label
-              htmlFor="password"
-              style={{
-                display: "block",
-                marginBottom: "8px",
-                fontWeight: "700",
-                color: "#1e293b",
-              }}
-            >
-              Mot de passe
-            </label>
-
-            <div style={{ position: "relative" }}>
-              <input
-                id="password"
-                type={showPwd ? "text" : "password"}
-                placeholder="••••••••"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-                style={{
-                  width: "100%",
-                  padding: "15px 52px 15px 16px",
-                  borderRadius: "16px",
-                  border: "1px solid #cbd5e1",
-                  background: "#f8fafc",
-                  outline: "none",
-                  fontSize: "15px",
-                }}
-              />
-
-              <button
-                type="button"
-                onClick={() => setShowPwd((v) => !v)}
-                style={{
-                  position: "absolute",
-                  right: "12px",
-                  top: "50%",
-                  transform: "translateY(-50%)",
-                  background: "transparent",
-                  border: "none",
-                  cursor: "pointer",
-                  color: "#475569",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                }}
-              >
-                {showPwd ? <EyeOffIcon /> : <EyeIcon />}
-              </button>
-            </div>
-          </div>
-
-          {error && (
+          <div style={{ position: "relative", zIndex: 1 }}>
             <div
               style={{
-                background: "#fef2f2",
-                color: "#b91c1c",
-                padding: "13px 14px",
-                borderRadius: "14px",
-                fontSize: "14px",
-                border: "1px solid #fecaca",
+                display: "inline-flex",
+                padding: "8px 14px",
+                borderRadius: "999px",
+                background: "rgba(255,255,255,0.08)",
+                border: "1px solid rgba(255,255,255,0.12)",
+                fontSize: "13px",
+                fontWeight: "700",
+                marginBottom: "22px",
               }}
             >
-              {error}
+              Street University
             </div>
-          )}
 
-          <button
-            type="submit"
-            disabled={loading}
+            <h1
+              style={{
+                fontSize: "52px",
+                lineHeight: 1.05,
+                margin: 0,
+                maxWidth: "520px",
+                letterSpacing: "-0.03em",
+              }}
+            >
+              Entraîne-toi avec des scénarios réels pilotés par l’IA.
+            </h1>
+
+            <p
+              style={{
+                marginTop: "18px",
+                fontSize: "17px",
+                lineHeight: 1.7,
+                color: "rgba(255,255,255,0.82)",
+                maxWidth: "540px",
+              }}
+            >
+              Prépare tes entretiens, améliore ta prise de parole et suis ta
+              progression dans une plateforme moderne pensée pour l’apprentissage
+              pratique.
+            </p>
+          </div>
+        </div>
+      )}
+
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          padding: isMobile ? "24px 14px" : "32px",
+        }}
+      >
+        <div style={{ width: "100%", maxWidth: "470px" }}>
+          <div style={{ marginBottom: "22px", textAlign: isMobile ? "center" : "left" }}>
+            <p
+              style={{
+                margin: 0,
+                color: "#2563eb",
+                fontWeight: "700",
+                fontSize: "14px",
+                letterSpacing: "0.02em",
+              }}
+            >
+              CONNEXION
+            </p>
+
+            <h2
+              style={{
+                margin: "10px 0 8px",
+                color: "#0f172a",
+                fontSize: isMobile ? "32px" : "38px",
+                lineHeight: 1.08,
+                fontWeight: "800",
+                letterSpacing: "-0.03em",
+              }}
+            >
+              Bon retour
+            </h2>
+
+            <p
+              style={{
+                margin: 0,
+                color: "#64748b",
+                fontSize: "15px",
+                lineHeight: 1.6,
+              }}
+            >
+              Connecte-toi pour accéder à ton dashboard et reprendre tes simulations.
+            </p>
+          </div>
+
+          <Card
             style={{
-              marginTop: "4px",
-              padding: "15px",
-              borderRadius: "16px",
-              border: "none",
-              background: "linear-gradient(135deg, #0f172a, #1e293b)",
-              color: "#ffffff",
-              fontWeight: "800",
-              fontSize: "16px",
-              cursor: loading ? "not-allowed" : "pointer",
-              boxShadow: "0 12px 24px rgba(15,23,42,0.18)",
-              opacity: loading ? 0.75 : 1,
+              padding: isMobile ? "22px 18px" : "28px",
+              borderRadius: "26px",
+              boxShadow: "0 18px 40px rgba(15,23,42,0.08)",
             }}
           >
-            {loading ? "Connexion..." : "Se connecter"}
-          </button>
-        </form>
+            <form
+              onSubmit={handleSubmit}
+              style={{
+                display: "grid",
+                gap: "16px",
+              }}
+            >
+              {error && <Alert type="error">{error}</Alert>}
 
-        <p style={{ marginTop: "20px", color: "#64748b", fontSize: "14px" }}>
-          Pas de compte ?
-          <a
-            href="/auth/register"
-            style={{
-              color: "#2563eb",
-              fontWeight: "700",
-              marginLeft: "6px",
-              textDecoration: "none",
-            }}
-          >
-            Créer un compte
-          </a>
-        </p>
+              <div>
+                <label
+                  htmlFor="email"
+                  style={{
+                    display: "block",
+                    marginBottom: "8px",
+                    fontWeight: "700",
+                    color: "#0f172a",
+                    fontSize: "14px",
+                  }}
+                >
+                  Email
+                </label>
+
+                <input
+                  id="email"
+                  name="email"
+                  type="email"
+                  value={form.email}
+                  onChange={handleChange}
+                  placeholder="exemple@email.com"
+                  style={{
+                    ...inputStyle,
+                    border: errors.email ? "1px solid #fca5a5" : "1px solid #cbd5e1",
+                  }}
+                />
+
+                {errors.email && (
+                  <p
+                    style={{
+                      margin: "8px 0 0",
+                      color: "#dc2626",
+                      fontSize: "13px",
+                    }}
+                  >
+                    {errors.email}
+                  </p>
+                )}
+              </div>
+
+              <div>
+                <label
+                  htmlFor="password"
+                  style={{
+                    display: "block",
+                    marginBottom: "8px",
+                    fontWeight: "700",
+                    color: "#0f172a",
+                    fontSize: "14px",
+                  }}
+                >
+                  Mot de passe
+                </label>
+
+                <div
+                  style={{
+                    position: "relative",
+                    width: "100%",
+                  }}
+                >
+                  <input
+                    id="password"
+                    name="password"
+                    type={showPassword ? "text" : "password"}
+                    value={form.password}
+                    onChange={handleChange}
+                    placeholder="Votre mot de passe"
+                    style={{
+                      width: "100%",
+                      boxSizing: "border-box",
+                      padding: "14px 48px 14px 16px",
+                      borderRadius: "16px",
+                      border: errors.password ? "1px solid #fca5a5" : "1px solid #cbd5e1",
+                      outline: "none",
+                      fontSize: "15px",
+                      background: "#f8fafc",
+                      color: "#0f172a",
+                    }}
+                  />
+
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword((prev) => !prev)}
+                    style={{
+                      position: "absolute",
+                      top: "50%",
+                      right: "14px",
+                      transform: "translateY(-50%)",
+                      border: "none",
+                      background: "transparent",
+                      cursor: "pointer",
+                      color: "#64748b",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      padding: 0,
+                      width: "20px",
+                      height: "20px",
+                    }}
+                  >
+                    {showPassword ? <EyeOffIcon /> : <EyeIcon />}
+                  </button>
+                </div>
+
+                {errors.password && (
+                  <p
+                    style={{
+                      margin: "8px 0 0",
+                      color: "#dc2626",
+                      fontSize: "13px",
+                    }}
+                  >
+                    {errors.password}
+                  </p>
+                )}
+              </div>
+
+              <Button
+                type="submit"
+                variant="blue"
+                fullWidth
+                disabled={loading}
+                style={{
+                  marginTop: "6px",
+                  borderRadius: "16px",
+                }}
+              >
+                {loading ? "Connexion..." : "Se connecter"}
+              </Button>
+            </form>
+
+            <div
+              style={{
+                marginTop: "20px",
+                paddingTop: "18px",
+                borderTop: "1px solid #e2e8f0",
+                textAlign: "center",
+                color: "#64748b",
+                fontSize: "14px",
+              }}
+            >
+              Pas encore de compte ?{" "}
+              <Link
+                href="/auth/register"
+                style={{
+                  color: "#2563eb",
+                  fontWeight: "700",
+                  textDecoration: "none",
+                }}
+              >
+                Créer un compte
+              </Link>
+            </div>
+          </Card>
+        </div>
       </div>
     </div>
   );

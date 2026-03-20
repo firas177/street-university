@@ -1,44 +1,47 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
+import Card from "../../components/ui/Card";
+import Button from "../../components/ui/Button";
+import Alert from "../../components/ui/Alert";
 import { registerUser } from "../../lib/api";
 
-function EyeIcon({ size = 20 }) {
+function EyeIcon() {
   return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none">
-      <path
-        d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z"
-        stroke="currentColor"
-        strokeWidth="2"
-      />
-      <circle cx="12" cy="12" r="3" stroke="currentColor" strokeWidth="2" />
+    <svg
+      width="20"
+      height="20"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z" />
+      <circle cx="12" cy="12" r="3" />
     </svg>
   );
 }
 
-function EyeOffIcon({ size = 20 }) {
+function EyeOffIcon() {
   return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none">
-      <path d="M3 3l18 18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-      <path
-        d="M10.6 10.6A3 3 0 0 0 12 15a3 3 0 0 0 2.4-4.4"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-      />
-      <path
-        d="M5.2 5.2C3.3 6.7 2 8.7 2 12c0 0 3.5 7 10 7 2 0 3.7-.6 5.1-1.5"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-      />
-      <path
-        d="M8.3 8.3C9.4 7.5 10.7 7 12 7c6.5 0 10 5 10 5s-1.1 2.2-3.3 3.9"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-      />
+    <svg
+      width="20"
+      height="20"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M17.94 17.94A10.94 10.94 0 0 1 12 19C5.5 19 2 12 2 12a21.8 21.8 0 0 1 5.06-6.94" />
+      <path d="M9.9 4.24A10.94 10.94 0 0 1 12 5c6.5 0 10 7 10 7a21.3 21.3 0 0 1-2.17 3.19" />
+      <path d="M14.12 14.12A3 3 0 0 1 9.88 9.88" />
+      <path d="M3 3l18 18" />
     </svg>
   );
 }
@@ -46,360 +49,526 @@ function EyeOffIcon({ size = 20 }) {
 export default function RegisterPage() {
   const router = useRouter();
 
-  const [fullName, setFullName] = useState("");
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
+  const [isMobile, setIsMobile] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
-  const [showPwd, setShowPwd] = useState(false);
-  const [showConfirmPwd, setShowConfirmPwd] = useState(false);
+  const [form, setForm] = useState({
+    full_name: "",
+    email: "",
+    password: "",
+    confirmPassword: "",
+  });
 
-  const [loading, setLoading] = useState(false);
+  const [errors, setErrors] = useState({});
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    function handleResize() {
+      setIsMobile(window.innerWidth < 900);
+    }
+
+    handleResize();
+    window.addEventListener("resize", handleResize);
+
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
+
+  function validateForm() {
+    const newErrors = {};
+
+    if (!form.full_name.trim()) {
+      newErrors.full_name = "Le nom complet est obligatoire.";
+    } else if (form.full_name.trim().length < 3) {
+      newErrors.full_name = "Le nom doit contenir au moins 3 caractères.";
+    }
+
+    if (!form.email.trim()) {
+      newErrors.email = "L’email est obligatoire.";
+    } else if (!/\S+@\S+\.\S+/.test(form.email)) {
+      newErrors.email = "Veuillez entrer un email valide.";
+    }
+
+    if (!form.password.trim()) {
+      newErrors.password = "Le mot de passe est obligatoire.";
+    } else if (form.password.length < 6) {
+      newErrors.password = "Le mot de passe doit contenir au moins 6 caractères.";
+    }
+
+    if (!form.confirmPassword.trim()) {
+      newErrors.confirmPassword = "Veuillez confirmer le mot de passe.";
+    } else if (form.confirmPassword !== form.password) {
+      newErrors.confirmPassword = "Les mots de passe ne correspondent pas.";
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  }
+
+  function handleChange(e) {
+    const { name, value } = e.target;
+
+    setForm((prev) => ({
+      ...prev,
+      [name]: value,
+    }));
+
+    setErrors((prev) => ({
+      ...prev,
+      [name]: "",
+    }));
+
+    setError("");
+    setSuccess("");
+  }
 
   async function handleSubmit(e) {
     e.preventDefault();
+
+    if (!validateForm()) return;
+
+    setLoading(true);
     setError("");
     setSuccess("");
 
-    if (password !== confirmPassword) {
-      setError("Les deux mots de passe doivent être identiques.");
-      return;
-    }
-
-    if (password.length < 8) {
-      setError("Le mot de passe doit contenir au moins 8 caractères.");
-      return;
-    }
-
-    setLoading(true);
-
     try {
       await registerUser({
-        full_name: fullName,
-        email,
-        password,
+        full_name: form.full_name,
+        email: form.email,
+        password: form.password,
       });
 
       setSuccess("Compte créé avec succès. Redirection vers la connexion...");
+
       setTimeout(() => {
         router.push("/auth/login");
-      }, 1000);
+      }, 1200);
     } catch (err) {
-      setError(err?.message || "Erreur lors de la création du compte");
+      setError(err?.message || "Échec de l’inscription.");
     } finally {
       setLoading(false);
     }
   }
 
-  const passwordsMatch =
-    confirmPassword.length > 0 && password === confirmPassword;
+  const inputStyle = {
+    width: "100%",
+    boxSizing: "border-box",
+    padding: "14px 16px",
+    borderRadius: "16px",
+    border: "1px solid #cbd5e1",
+    outline: "none",
+    fontSize: "15px",
+    background: "#f8fafc",
+    color: "#0f172a",
+  };
 
   return (
     <div
       style={{
         minHeight: "100vh",
-        background:
-          "radial-gradient(circle at top right, #dbeafe 0%, #eff6ff 30%, #f8fafc 70%, #ffffff 100%)",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        padding: "24px",
+        display: "grid",
+        gridTemplateColumns: isMobile ? "1fr" : "0.95fr 1.05fr",
+        background: "#f8fafc",
       }}
     >
       <div
         style={{
-          width: "100%",
-          maxWidth: "520px",
-          background: "rgba(255,255,255,0.88)",
-          backdropFilter: "blur(10px)",
-          borderRadius: "28px",
-          padding: "34px",
-          boxShadow: "0 25px 60px rgba(15,23,42,0.12)",
-          border: "1px solid rgba(226,232,240,0.9)",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          padding: isMobile ? "24px 14px" : "32px",
+          order: isMobile ? 2 : 1,
         }}
       >
-        <div style={{ marginBottom: "24px" }}>
+        <div style={{ width: "100%", maxWidth: "500px" }}>
+          <div style={{ marginBottom: "22px", textAlign: isMobile ? "center" : "left" }}>
+            <p
+              style={{
+                margin: 0,
+                color: "#2563eb",
+                fontWeight: "700",
+                fontSize: "14px",
+                letterSpacing: "0.02em",
+              }}
+            >
+              INSCRIPTION
+            </p>
+
+            <h2
+              style={{
+                margin: "10px 0 8px",
+                color: "#0f172a",
+                fontSize: isMobile ? "32px" : "38px",
+                lineHeight: 1.08,
+                fontWeight: "800",
+                letterSpacing: "-0.03em",
+              }}
+            >
+              Crée ton compte
+            </h2>
+
+            <p
+              style={{
+                margin: 0,
+                color: "#64748b",
+                fontSize: "15px",
+                lineHeight: 1.6,
+              }}
+            >
+              Rejoins Street University et commence à t’entraîner sur des scénarios concrets.
+            </p>
+          </div>
+
+          <Card
+            style={{
+              padding: isMobile ? "22px 18px" : "28px",
+              borderRadius: "26px",
+              boxShadow: "0 18px 40px rgba(15,23,42,0.08)",
+            }}
+          >
+            <form
+              onSubmit={handleSubmit}
+              style={{
+                display: "grid",
+                gap: "16px",
+              }}
+            >
+              {error && <Alert type="error">{error}</Alert>}
+              {success && <Alert type="success">{success}</Alert>}
+
+              <div>
+                <label
+                  htmlFor="full_name"
+                  style={{
+                    display: "block",
+                    marginBottom: "8px",
+                    fontWeight: "700",
+                    color: "#0f172a",
+                    fontSize: "14px",
+                  }}
+                >
+                  Nom complet
+                </label>
+
+                <input
+                  id="full_name"
+                  name="full_name"
+                  type="text"
+                  value={form.full_name}
+                  onChange={handleChange}
+                  placeholder="Votre nom complet"
+                  style={{
+                    ...inputStyle,
+                    border: errors.full_name ? "1px solid #fca5a5" : "1px solid #cbd5e1",
+                  }}
+                />
+
+                {errors.full_name && (
+                  <p style={{ margin: "8px 0 0", color: "#dc2626", fontSize: "13px" }}>
+                    {errors.full_name}
+                  </p>
+                )}
+              </div>
+
+              <div>
+                <label
+                  htmlFor="email"
+                  style={{
+                    display: "block",
+                    marginBottom: "8px",
+                    fontWeight: "700",
+                    color: "#0f172a",
+                    fontSize: "14px",
+                  }}
+                >
+                  Email
+                </label>
+
+                <input
+                  id="email"
+                  name="email"
+                  type="email"
+                  value={form.email}
+                  onChange={handleChange}
+                  placeholder="exemple@email.com"
+                  style={{
+                    ...inputStyle,
+                    border: errors.email ? "1px solid #fca5a5" : "1px solid #cbd5e1",
+                  }}
+                />
+
+                {errors.email && (
+                  <p style={{ margin: "8px 0 0", color: "#dc2626", fontSize: "13px" }}>
+                    {errors.email}
+                  </p>
+                )}
+              </div>
+
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr",
+                  gap: "16px",
+                }}
+              >
+                <div>
+                  <label
+                    htmlFor="password"
+                    style={{
+                      display: "block",
+                      marginBottom: "8px",
+                      fontWeight: "700",
+                      color: "#0f172a",
+                      fontSize: "14px",
+                    }}
+                  >
+                    Mot de passe
+                  </label>
+
+                  <div style={{ position: "relative", width: "100%" }}>
+                    <input
+                      id="password"
+                      name="password"
+                      type={showPassword ? "text" : "password"}
+                      value={form.password}
+                      onChange={handleChange}
+                      placeholder="Minimum 6 caractères"
+                      style={{
+                        width: "100%",
+                        boxSizing: "border-box",
+                        padding: "14px 48px 14px 16px",
+                        borderRadius: "16px",
+                        border: errors.password ? "1px solid #fca5a5" : "1px solid #cbd5e1",
+                        outline: "none",
+                        fontSize: "15px",
+                        background: "#f8fafc",
+                        color: "#0f172a",
+                      }}
+                    />
+
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword((prev) => !prev)}
+                      style={{
+                        position: "absolute",
+                        top: "50%",
+                        right: "14px",
+                        transform: "translateY(-50%)",
+                        border: "none",
+                        background: "transparent",
+                        cursor: "pointer",
+                        color: "#64748b",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        padding: 0,
+                        width: "20px",
+                        height: "20px",
+                      }}
+                    >
+                      {showPassword ? <EyeOffIcon /> : <EyeIcon />}
+                    </button>
+                  </div>
+
+                  {errors.password && (
+                    <p style={{ margin: "8px 0 0", color: "#dc2626", fontSize: "13px" }}>
+                      {errors.password}
+                    </p>
+                  )}
+                </div>
+
+                <div>
+                  <label
+                    htmlFor="confirmPassword"
+                    style={{
+                      display: "block",
+                      marginBottom: "8px",
+                      fontWeight: "700",
+                      color: "#0f172a",
+                      fontSize: "14px",
+                    }}
+                  >
+                    Confirmation
+                  </label>
+
+                  <div style={{ position: "relative", width: "100%" }}>
+                    <input
+                      id="confirmPassword"
+                      name="confirmPassword"
+                      type={showConfirmPassword ? "text" : "password"}
+                      value={form.confirmPassword}
+                      onChange={handleChange}
+                      placeholder="Confirme le mot de passe"
+                      style={{
+                        width: "100%",
+                        boxSizing: "border-box",
+                        padding: "14px 48px 14px 16px",
+                        borderRadius: "16px",
+                        border: errors.confirmPassword
+                          ? "1px solid #fca5a5"
+                          : "1px solid #cbd5e1",
+                        outline: "none",
+                        fontSize: "15px",
+                        background: "#f8fafc",
+                        color: "#0f172a",
+                      }}
+                    />
+
+                    <button
+                      type="button"
+                      onClick={() => setShowConfirmPassword((prev) => !prev)}
+                      style={{
+                        position: "absolute",
+                        top: "50%",
+                        right: "14px",
+                        transform: "translateY(-50%)",
+                        border: "none",
+                        background: "transparent",
+                        cursor: "pointer",
+                        color: "#64748b",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        padding: 0,
+                        width: "20px",
+                        height: "20px",
+                      }}
+                    >
+                      {showConfirmPassword ? <EyeOffIcon /> : <EyeIcon />}
+                    </button>
+                  </div>
+
+                  {errors.confirmPassword && (
+                    <p style={{ margin: "8px 0 0", color: "#dc2626", fontSize: "13px" }}>
+                      {errors.confirmPassword}
+                    </p>
+                  )}
+                </div>
+              </div>
+
+              <Button
+                type="submit"
+                variant="blue"
+                fullWidth
+                disabled={loading}
+                style={{
+                  marginTop: "6px",
+                  borderRadius: "16px",
+                }}
+              >
+                {loading ? "Création..." : "Créer un compte"}
+              </Button>
+            </form>
+
+            <div
+              style={{
+                marginTop: "20px",
+                paddingTop: "18px",
+                borderTop: "1px solid #e2e8f0",
+                textAlign: "center",
+                color: "#64748b",
+                fontSize: "14px",
+              }}
+            >
+              Tu as déjà un compte ?{" "}
+              <Link
+                href="/auth/login"
+                style={{
+                  color: "#2563eb",
+                  fontWeight: "700",
+                  textDecoration: "none",
+                }}
+              >
+                Se connecter
+              </Link>
+            </div>
+          </Card>
+        </div>
+      </div>
+
+      {!isMobile && (
+        <div
+          style={{
+            position: "relative",
+            overflow: "hidden",
+            background:
+              "radial-gradient(circle at top right, rgba(59,130,246,0.22), transparent 35%), linear-gradient(135deg, #0f172a, #1e293b)",
+            color: "#ffffff",
+            padding: "48px",
+            display: "flex",
+            flexDirection: "column",
+            justifyContent: "space-between",
+            order: 2,
+          }}
+        >
           <div
             style={{
-              display: "inline-block",
-              padding: "6px 12px",
+              position: "absolute",
+              top: "-90px",
+              left: "-90px",
+              width: "230px",
+              height: "230px",
               borderRadius: "999px",
-              background: "#eff6ff",
-              color: "#1d4ed8",
-              fontSize: "13px",
-              fontWeight: "700",
-              marginBottom: "16px",
+              background: "rgba(255,255,255,0.08)",
             }}
-          >
-            Street University
-          </div>
-
-          <h1
+          />
+          <div
             style={{
-              fontSize: "44px",
-              margin: 0,
-              fontWeight: "800",
-              color: "#0f172a",
-              lineHeight: 1.05,
+              position: "absolute",
+              bottom: "40px",
+              right: "-50px",
+              width: "180px",
+              height: "180px",
+              borderRadius: "999px",
+              background: "rgba(59,130,246,0.18)",
             }}
-          >
-            Créer un compte
-          </h1>
+          />
 
-          <p style={{ marginTop: "12px", color: "#64748b", fontSize: "16px", lineHeight: 1.5 }}>
-            Rejoins la plateforme et commence ton parcours.
-          </p>
+          <div style={{ position: "relative", zIndex: 1 }}>
+            <div
+              style={{
+                display: "inline-flex",
+                padding: "8px 14px",
+                borderRadius: "999px",
+                background: "rgba(255,255,255,0.08)",
+                border: "1px solid rgba(255,255,255,0.12)",
+                fontSize: "13px",
+                fontWeight: "700",
+                marginBottom: "22px",
+              }}
+            >
+              Commence aujourd’hui
+            </div>
+
+            <h1
+              style={{
+                fontSize: "50px",
+                lineHeight: 1.05,
+                margin: 0,
+                maxWidth: "520px",
+                letterSpacing: "-0.03em",
+              }}
+            >
+              Apprends, simule, progresse.
+            </h1>
+
+            <p
+              style={{
+                marginTop: "18px",
+                fontSize: "17px",
+                lineHeight: 1.7,
+                color: "rgba(255,255,255,0.82)",
+                maxWidth: "530px",
+              }}
+            >
+              Crée ton compte pour accéder aux scénarios interactifs, suivre ta progression
+              et construire une expérience d’apprentissage moderne.
+            </p>
+          </div>
         </div>
-
-        <form onSubmit={handleSubmit} style={{ display: "grid", gap: "16px" }}>
-          <div>
-            <label
-              htmlFor="fullName"
-              style={{
-                display: "block",
-                marginBottom: "8px",
-                fontWeight: "700",
-                color: "#1e293b",
-              }}
-            >
-              Nom complet
-            </label>
-            <input
-              id="fullName"
-              type="text"
-              placeholder="ex: Nada Aissi"
-              value={fullName}
-              onChange={(e) => setFullName(e.target.value)}
-              required
-              style={{
-                width: "100%",
-                padding: "15px 16px",
-                borderRadius: "16px",
-                border: "1px solid #cbd5e1",
-                background: "#f8fafc",
-                outline: "none",
-                fontSize: "15px",
-              }}
-            />
-          </div>
-
-          <div>
-            <label
-              htmlFor="email"
-              style={{
-                display: "block",
-                marginBottom: "8px",
-                fontWeight: "700",
-                color: "#1e293b",
-              }}
-            >
-              Email
-            </label>
-            <input
-              id="email"
-              type="email"
-              placeholder="ex: test@gmail.com"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-              style={{
-                width: "100%",
-                padding: "15px 16px",
-                borderRadius: "16px",
-                border: "1px solid #cbd5e1",
-                background: "#f8fafc",
-                outline: "none",
-                fontSize: "15px",
-              }}
-            />
-          </div>
-
-          <div>
-            <label
-              htmlFor="password"
-              style={{
-                display: "block",
-                marginBottom: "8px",
-                fontWeight: "700",
-                color: "#1e293b",
-              }}
-            >
-              Mot de passe
-            </label>
-
-            <div style={{ position: "relative" }}>
-              <input
-                id="password"
-                type={showPwd ? "text" : "password"}
-                placeholder="Minimum 8 caractères"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-                style={{
-                  width: "100%",
-                  padding: "15px 52px 15px 16px",
-                  borderRadius: "16px",
-                  border: "1px solid #cbd5e1",
-                  background: "#f8fafc",
-                  outline: "none",
-                  fontSize: "15px",
-                }}
-              />
-
-              <button
-                type="button"
-                onClick={() => setShowPwd(!showPwd)}
-                style={{
-                  position: "absolute",
-                  right: "12px",
-                  top: "50%",
-                  transform: "translateY(-50%)",
-                  background: "transparent",
-                  border: "none",
-                  cursor: "pointer",
-                  color: "#475569",
-                }}
-              >
-                {showPwd ? <EyeOffIcon /> : <EyeIcon />}
-              </button>
-            </div>
-          </div>
-
-          <div>
-            <label
-              htmlFor="confirmPassword"
-              style={{
-                display: "block",
-                marginBottom: "8px",
-                fontWeight: "700",
-                color: "#1e293b",
-              }}
-            >
-              Confirmer le mot de passe
-            </label>
-
-            <div style={{ position: "relative" }}>
-              <input
-                id="confirmPassword"
-                type={showConfirmPwd ? "text" : "password"}
-                placeholder="Retape le mot de passe"
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-                required
-                style={{
-                  width: "100%",
-                  padding: "15px 52px 15px 16px",
-                  borderRadius: "16px",
-                  border: passwordsMatch
-                    ? "1px solid #86efac"
-                    : "1px solid #cbd5e1",
-                  background: "#f8fafc",
-                  outline: "none",
-                  fontSize: "15px",
-                }}
-              />
-
-              <button
-                type="button"
-                onClick={() => setShowConfirmPwd(!showConfirmPwd)}
-                style={{
-                  position: "absolute",
-                  right: "12px",
-                  top: "50%",
-                  transform: "translateY(-50%)",
-                  background: "transparent",
-                  border: "none",
-                  cursor: "pointer",
-                  color: "#475569",
-                }}
-              >
-                {showConfirmPwd ? <EyeOffIcon /> : <EyeIcon />}
-              </button>
-            </div>
-
-            {confirmPassword.length > 0 && (
-              <p
-                style={{
-                  marginTop: "8px",
-                  fontSize: "13px",
-                  color: passwordsMatch ? "#15803d" : "#b91c1c",
-                }}
-              >
-                {passwordsMatch
-                  ? "Les mots de passe correspondent."
-                  : "Les mots de passe ne correspondent pas."}
-              </p>
-            )}
-          </div>
-
-          {error && (
-            <div
-              style={{
-                background: "#fef2f2",
-                color: "#b91c1c",
-                padding: "13px 14px",
-                borderRadius: "14px",
-                fontSize: "14px",
-                border: "1px solid #fecaca",
-              }}
-            >
-              {error}
-            </div>
-          )}
-
-          {success && (
-            <div
-              style={{
-                background: "#ecfdf5",
-                color: "#047857",
-                padding: "13px 14px",
-                borderRadius: "14px",
-                fontSize: "14px",
-                border: "1px solid #a7f3d0",
-              }}
-            >
-              {success}
-            </div>
-          )}
-
-          <button
-            type="submit"
-            disabled={loading}
-            style={{
-              marginTop: "4px",
-              padding: "15px",
-              borderRadius: "16px",
-              border: "none",
-              background: "linear-gradient(135deg, #0f172a, #1e293b)",
-              color: "#ffffff",
-              fontWeight: "800",
-              fontSize: "16px",
-              cursor: loading ? "not-allowed" : "pointer",
-              boxShadow: "0 12px 24px rgba(15,23,42,0.18)",
-              opacity: loading ? 0.75 : 1,
-            }}
-          >
-            {loading ? "Création..." : "Créer le compte"}
-          </button>
-        </form>
-
-        <p style={{ marginTop: "20px", color: "#64748b", fontSize: "14px" }}>
-          Déjà un compte ?
-          <a
-            href="/auth/login"
-            style={{
-              color: "#2563eb",
-              fontWeight: "700",
-              marginLeft: "6px",
-              textDecoration: "none",
-            }}
-          >
-            Se connecter
-          </a>
-        </p>
-      </div>
+      )}
     </div>
   );
 }
