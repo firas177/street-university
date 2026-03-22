@@ -160,8 +160,9 @@ export default function RegisterPage() {
     border: "1px solid #cbd5e1",
     outline: "none",
     fontSize: "15px",
-    background: "#f8fafc",
+    background: "rgba(248,250,252,0.92)",
     color: "#0f172a",
+    transition: "all 0.2s ease",
   };
 
   return (
@@ -173,6 +174,31 @@ export default function RegisterPage() {
         background: "#f8fafc",
       }}
     >
+      <style jsx>{`
+        @keyframes fadeUp {
+          from {
+            opacity: 0;
+            transform: translateY(18px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+
+        @keyframes floatSoft {
+          0% {
+            transform: translateY(0px);
+          }
+          50% {
+            transform: translateY(-10px);
+          }
+          100% {
+            transform: translateY(0px);
+          }
+        }
+      `}</style>
+
       <div
         style={{
           display: "flex",
@@ -182,7 +208,7 @@ export default function RegisterPage() {
           order: isMobile ? 2 : 1,
         }}
       >
-        <div style={{ width: "100%", maxWidth: "500px" }}>
+        <div style={{ width: "100%", maxWidth: "520px", animation: "fadeUp 0.55s ease" }}>
           <div style={{ marginBottom: "22px", textAlign: isMobile ? "center" : "left" }}>
             <p
               style={{
@@ -190,7 +216,7 @@ export default function RegisterPage() {
                 color: "#2563eb",
                 fontWeight: "700",
                 fontSize: "14px",
-                letterSpacing: "0.02em",
+                letterSpacing: "0.03em",
               }}
             >
               INSCRIPTION
@@ -200,10 +226,10 @@ export default function RegisterPage() {
               style={{
                 margin: "10px 0 8px",
                 color: "#0f172a",
-                fontSize: isMobile ? "32px" : "38px",
-                lineHeight: 1.08,
+                fontSize: isMobile ? "34px" : "40px",
+                lineHeight: 1.05,
                 fontWeight: "800",
-                letterSpacing: "-0.03em",
+                letterSpacing: "-0.04em",
               }}
             >
               Crée ton compte
@@ -214,18 +240,22 @@ export default function RegisterPage() {
                 margin: 0,
                 color: "#64748b",
                 fontSize: "15px",
-                lineHeight: 1.6,
+                lineHeight: 1.7,
               }}
             >
-              Rejoins Street University et commence à t’entraîner sur des scénarios concrets.
+              Rejoins Street University et commence à structurer ton parcours
+              d’apprentissage pratique.
             </p>
           </div>
 
           <Card
+            hoverable
             style={{
-              padding: isMobile ? "22px 18px" : "28px",
-              borderRadius: "26px",
-              boxShadow: "0 18px 40px rgba(15,23,42,0.08)",
+              padding: isMobile ? "22px 18px" : "30px",
+              borderRadius: "28px",
+              boxShadow: "0 20px 42px rgba(15,23,42,0.08)",
+              background:
+                "linear-gradient(135deg, rgba(255,255,255,0.98), rgba(248,250,252,0.96))",
             }}
           >
             <form
@@ -343,8 +373,9 @@ export default function RegisterPage() {
                         border: errors.password ? "1px solid #fca5a5" : "1px solid #cbd5e1",
                         outline: "none",
                         fontSize: "15px",
-                        background: "#f8fafc",
+                        background: "rgba(248,250,252,0.92)",
                         color: "#0f172a",
+                        transition: "all 0.2s ease",
                       }}
                     />
 
@@ -411,8 +442,9 @@ export default function RegisterPage() {
                           : "1px solid #cbd5e1",
                         outline: "none",
                         fontSize: "15px",
-                        background: "#f8fafc",
+                        background: "rgba(248,250,252,0.92)",
                         color: "#0f172a",
+                        transition: "all 0.2s ease",
                       }}
                     />
 
@@ -455,7 +487,9 @@ export default function RegisterPage() {
                 disabled={loading}
                 style={{
                   marginTop: "6px",
-                  borderRadius: "16px",
+                  borderRadius: "18px",
+                  minHeight: "52px",
+                  fontSize: "15px",
                 }}
               >
                 {loading ? "Création..." : "Créer un compte"}
@@ -464,7 +498,7 @@ export default function RegisterPage() {
 
             <div
               style={{
-                marginTop: "20px",
+                marginTop: "22px",
                 paddingTop: "18px",
                 borderTop: "1px solid #e2e8f0",
                 textAlign: "center",
@@ -494,39 +528,41 @@ export default function RegisterPage() {
             position: "relative",
             overflow: "hidden",
             background:
-              "radial-gradient(circle at top right, rgba(59,130,246,0.22), transparent 35%), linear-gradient(135deg, #0f172a, #1e293b)",
+              "radial-gradient(circle at top right, rgba(59,130,246,0.22), transparent 32%), linear-gradient(135deg, #0f172a, #1e293b)",
             color: "#ffffff",
             padding: "48px",
             display: "flex",
             flexDirection: "column",
-            justifyContent: "space-between",
+            justifyContent: "center",
             order: 2,
           }}
         >
           <div
             style={{
               position: "absolute",
-              top: "-90px",
-              left: "-90px",
-              width: "230px",
-              height: "230px",
+              top: "-80px",
+              left: "-80px",
+              width: "220px",
+              height: "220px",
               borderRadius: "999px",
               background: "rgba(255,255,255,0.08)",
+              animation: "floatSoft 5s ease-in-out infinite",
             }}
           />
           <div
             style={{
               position: "absolute",
-              bottom: "40px",
-              right: "-50px",
+              bottom: "60px",
+              right: "-60px",
               width: "180px",
               height: "180px",
               borderRadius: "999px",
               background: "rgba(59,130,246,0.18)",
+              animation: "floatSoft 6s ease-in-out infinite",
             }}
           />
 
-          <div style={{ position: "relative", zIndex: 1 }}>
+          <div style={{ position: "relative", zIndex: 1, animation: "fadeUp 0.45s ease" }}>
             <div
               style={{
                 display: "inline-flex",
@@ -539,32 +575,32 @@ export default function RegisterPage() {
                 marginBottom: "22px",
               }}
             >
-              Commence aujourd’hui
+              Street University
             </div>
 
             <h1
               style={{
-                fontSize: "50px",
-                lineHeight: 1.05,
+                fontSize: "54px",
+                lineHeight: 1.02,
                 margin: 0,
-                maxWidth: "520px",
-                letterSpacing: "-0.03em",
+                maxWidth: "560px",
+                letterSpacing: "-0.04em",
               }}
             >
-              Apprends, simule, progresse.
+              Rejoins la plateforme et commence à construire.
             </h1>
 
             <p
               style={{
                 marginTop: "18px",
                 fontSize: "17px",
-                lineHeight: 1.7,
-                color: "rgba(255,255,255,0.82)",
-                maxWidth: "530px",
+                lineHeight: 1.75,
+                color: "rgba(255,255,255,0.84)",
+                maxWidth: "560px",
               }}
             >
-              Crée ton compte pour accéder aux scénarios interactifs, suivre ta progression
-              et construire une expérience d’apprentissage moderne.
+              Crée ton compte pour accéder au dashboard, au profil et à une base
+              front moderne prête pour la suite du projet.
             </p>
           </div>
         </div>

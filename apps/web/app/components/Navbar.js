@@ -4,19 +4,29 @@ import { useEffect, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 
 function NavItem({ label, active, onClick }) {
+  const [hovered, setHovered] = useState(false);
+
   return (
     <button
       onClick={onClick}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
       style={{
         padding: "10px 14px",
-        borderRadius: "12px",
+        borderRadius: "14px",
         border: active ? "1px solid #bfdbfe" : "1px solid #cbd5e1",
-        background: active ? "#eff6ff" : "#ffffff",
+        background: active
+          ? "linear-gradient(135deg, #eff6ff, #ffffff)"
+          : "#ffffff",
         color: active ? "#1d4ed8" : "#0f172a",
         cursor: "pointer",
         fontWeight: active ? "700" : "600",
         width: "100%",
         transition: "all 0.2s ease",
+        boxShadow: hovered
+          ? "0 10px 22px rgba(15,23,42,0.08)"
+          : "0 4px 12px rgba(15,23,42,0.03)",
+        transform: hovered ? "translateY(-1px)" : "translateY(0)",
       }}
     >
       {label}
@@ -44,12 +54,13 @@ export default function Navbar() {
     <nav
       style={{
         width: "100%",
-        borderBottom: "1px solid #e2e8f0",
-        background: "rgba(255,255,255,0.95)",
-        backdropFilter: "blur(8px)",
+        borderBottom: "1px solid rgba(226,232,240,0.8)",
+        background: "rgba(255,255,255,0.82)",
+        backdropFilter: "blur(14px)",
         position: "sticky",
         top: 0,
-        zIndex: 10,
+        zIndex: 20,
+        boxShadow: "0 8px 24px rgba(15,23,42,0.04)",
       }}
     >
       <div
@@ -72,7 +83,7 @@ export default function Navbar() {
             color: "#0f172a",
             cursor: "pointer",
             textAlign: isMobile ? "center" : "left",
-            letterSpacing: "-0.02em",
+            letterSpacing: "-0.03em",
           }}
         >
           Street University

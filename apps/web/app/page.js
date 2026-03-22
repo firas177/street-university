@@ -2,20 +2,12 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import Navbar from "../components/Navbar";
-import Card from "../components/ui/Card";
-import Button from "../components/ui/Button";
-import Alert from "../components/ui/Alert";
-import PageHeader from "../components/ui/PageHeader";
-import { getProfile } from "../lib/api";
+import Button from "./components/ui/Button";
+import Card from "./components/ui/Card";
 
-export default function DashboardPage() {
+export default function HomePage() {
   const router = useRouter();
-
   const [isMobile, setIsMobile] = useState(false);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
-  const [user, setUser] = useState(null);
 
   useEffect(() => {
     function handleResize() {
@@ -24,291 +16,433 @@ export default function DashboardPage() {
 
     handleResize();
     window.addEventListener("resize", handleResize);
-
     return () => window.removeEventListener("resize", handleResize);
   }, []);
 
-  useEffect(() => {
-    async function loadDashboard() {
-      const token = localStorage.getItem("token");
-
-      if (!token) {
-        router.push("/auth/login");
-        return;
-      }
-
-      try {
-        const profile = await getProfile(token);
-        setUser(profile);
-      } catch (err) {
-        setError(err?.message || "Erreur lors du chargement du dashboard.");
-      } finally {
-        setLoading(false);
-      }
-    }
-
-    loadDashboard();
-  }, [router]);
-
-  function handleLogout() {
-    localStorage.removeItem("token");
-    router.push("/auth/login");
-  }
-
-  if (loading) {
-    return (
-      <div style={{ minHeight: "100vh", background: "#f8fafc" }}>
-        <Navbar />
-        <main
-          style={{
-            maxWidth: "1100px",
-            margin: "0 auto",
-            padding: isMobile ? "20px 14px" : "32px 20px",
-          }}
-        >
-          Chargement du dashboard...
-        </main>
-      </div>
-    );
-  }
+  const features = [
+    {
+      number: "01",
+      title: "Préparation aux situations réelles",
+      description:
+        "Street University aide les jeunes à s’entraîner sur des contextes concrets : entretien d’embauche, prise de parole, pitch, négociation et leadership.",
+    },
+    {
+      number: "02",
+      title: "Développement des soft skills",
+      description:
+        "La plateforme met l’accent sur la confiance, la communication, la présence, la clarté du discours et la capacité à convaincre.",
+    },
+    {
+      number: "03",
+      title: "Une expérience moderne assistée par l’IA",
+      description:
+        "Le projet est pensé pour évoluer vers des simulations plus avancées, une interaction plus intelligente et de futures fonctionnalités vocales.",
+    },
+  ];
 
   return (
-    <div style={{ minHeight: "100vh", background: "#f8fafc" }}>
-      <Navbar />
+    <div
+      style={{
+        minHeight: "100vh",
+        background: "#f8fafc",
+        color: "#0f172a",
+      }}
+    >
+      <style jsx>{`
+        @keyframes fadeUp {
+          from {
+            opacity: 0;
+            transform: translateY(18px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
 
-      <main
+        @keyframes floatSoft {
+          0% {
+            transform: translateY(0px);
+          }
+          50% {
+            transform: translateY(-10px);
+          }
+          100% {
+            transform: translateY(0px);
+          }
+        }
+      `}</style>
+
+      <header
         style={{
-          maxWidth: "1100px",
-          margin: "0 auto",
-          padding: isMobile ? "20px 14px" : "32px 20px",
+          position: "sticky",
+          top: 0,
+          zIndex: 20,
+          backdropFilter: "blur(12px)",
+          background: "rgba(248,250,252,0.82)",
+          borderBottom: "1px solid rgba(226,232,240,0.9)",
         }}
       >
-        <PageHeader
-          dark
-          badge="Dashboard"
-          title={`Bienvenue${user?.full_name ? `, ${user.full_name}` : ""}`}
-          description="Retrouve ton espace personnel, tes scénarios et ton profil."
-        />
-
-        {error && (
-          <Alert type="error" style={{ marginBottom: "18px" }}>
-            {error}
-          </Alert>
-        )}
-
         <div
           style={{
-            display: "grid",
-            gridTemplateColumns: isMobile ? "1fr" : "1.2fr 0.8fr",
-            gap: "18px",
-            alignItems: "start",
+            maxWidth: "1180px",
+            margin: "0 auto",
+            padding: isMobile ? "14px" : "18px 20px",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: "12px",
+            flexWrap: "wrap",
           }}
         >
-          <Card>
-            <h2
+          <div
+            style={{
+              fontWeight: "800",
+              fontSize: isMobile ? "22px" : "20px",
+              letterSpacing: "-0.03em",
+              cursor: "pointer",
+            }}
+            onClick={() => router.push("/")}
+          >
+            Street University
+          </div>
+
+          <div
+            style={{
+              display: "flex",
+              gap: "10px",
+              width: isMobile ? "100%" : "auto",
+              flexDirection: isMobile ? "column" : "row",
+            }}
+          >
+            <Button
+              variant="secondary"
+              onClick={() => router.push("/auth/login")}
+              fullWidth={isMobile}
+            >
+              Se connecter
+            </Button>
+
+            <Button
+              variant="blue"
+              onClick={() => router.push("/auth/register")}
+              fullWidth={isMobile}
+            >
+              Commencer
+            </Button>
+          </div>
+        </div>
+      </header>
+
+      <main>
+        <section
+          style={{
+            maxWidth: "1180px",
+            margin: "0 auto",
+            padding: isMobile ? "28px 14px 24px" : "52px 20px 36px",
+          }}
+        >
+          <div
+            style={{
+              position: "relative",
+              overflow: "hidden",
+              borderRadius: isMobile ? "24px" : "32px",
+              padding: isMobile ? "24px 18px" : "42px",
+              background:
+                "radial-gradient(circle at top left, rgba(59,130,246,0.22), transparent 32%), linear-gradient(135deg, #0f172a, #1e293b)",
+              color: "#ffffff",
+              minHeight: isMobile ? "auto" : "520px",
+              display: "flex",
+              flexDirection: "column",
+              justifyContent: "center",
+              boxShadow: "0 24px 50px rgba(15,23,42,0.16)",
+              animation: "fadeUp 0.45s ease",
+            }}
+          >
+            <div
               style={{
-                marginTop: 0,
-                marginBottom: "12px",
-                color: "#0f172a",
-                fontSize: isMobile ? "24px" : "28px",
+                position: "absolute",
+                top: "-70px",
+                right: "-70px",
+                width: "220px",
+                height: "220px",
+                borderRadius: "999px",
+                background: "rgba(255,255,255,0.08)",
+                animation: "floatSoft 5s ease-in-out infinite",
+              }}
+            />
+            <div
+              style={{
+                position: "absolute",
+                bottom: "-50px",
+                left: "-40px",
+                width: "180px",
+                height: "180px",
+                borderRadius: "999px",
+                background: "rgba(59,130,246,0.18)",
+                animation: "floatSoft 6s ease-in-out infinite",
+              }}
+            />
+
+            <div style={{ position: "relative", zIndex: 1 }}>
+              <div
+                style={{
+                  display: "inline-flex",
+                  padding: "8px 14px",
+                  borderRadius: "999px",
+                  background: "rgba(255,255,255,0.08)",
+                  border: "1px solid rgba(255,255,255,0.12)",
+                  fontSize: "13px",
+                  fontWeight: "700",
+                  marginBottom: "18px",
+                }}
+              >
+                Apprendre par la pratique
+              </div>
+
+              <h1
+                style={{
+                  margin: 0,
+                  fontSize: isMobile ? "38px" : "64px",
+                  lineHeight: 1.02,
+                  letterSpacing: "-0.04em",
+                  maxWidth: "820px",
+                }}
+              >
+                Développe les compétences réelles qui font la différence.
+              </h1>
+
+              <p
+                style={{
+                  marginTop: "18px",
+                  fontSize: isMobile ? "15px" : "18px",
+                  lineHeight: 1.75,
+                  color: "rgba(255,255,255,0.84)",
+                  maxWidth: "760px",
+                }}
+              >
+                Street University est une plateforme qui prépare les jeunes à la
+                vraie vie grâce à des simulations modernes : entretiens,
+                communication, leadership, pitch, négociation et confiance en soi.
+              </p>
+
+              <div
+                style={{
+                  display: "flex",
+                  gap: "12px",
+                  marginTop: "24px",
+                  flexDirection: isMobile ? "column" : "row",
+                  maxWidth: isMobile ? "100%" : "430px",
+                }}
+              >
+                <Button
+                  variant="blue"
+                  onClick={() => router.push("/auth/register")}
+                  fullWidth={isMobile}
+                  style={{ minHeight: "52px" }}
+                >
+                  Créer un compte
+                </Button>
+
+                <Button
+                  variant="secondary"
+                  onClick={() => router.push("/auth/login")}
+                  fullWidth={isMobile}
+                  style={{ background: "#ffffff" }}
+                >
+                  Se connecter
+                </Button>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section
+          style={{
+            maxWidth: "1180px",
+            margin: "0 auto",
+            padding: isMobile ? "10px 14px 40px" : "10px 20px 60px",
+          }}
+        >
+          <div style={{ marginBottom: "20px", animation: "fadeUp 0.7s ease" }}>
+            <p
+              style={{
+                margin: 0,
+                color: "#2563eb",
+                fontWeight: "700",
+                fontSize: "13px",
+                letterSpacing: "0.03em",
               }}
             >
-              Ton espace
+              NOS SERVICES
+            </p>
+
+            <h2
+              style={{
+                margin: "10px 0 0",
+                fontSize: isMobile ? "30px" : "42px",
+                lineHeight: 1.05,
+                letterSpacing: "-0.03em",
+              }}
+            >
+              Ce que Street University t’apporte.
             </h2>
+          </div>
+
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: isMobile ? "1fr" : "repeat(3, 1fr)",
+              gap: "18px",
+            }}
+          >
+            {features.map((feature, index) => (
+              <Card
+                key={index}
+                hoverable
+                style={{
+                  borderRadius: "26px",
+                  padding: isMobile ? "20px" : "24px",
+                  animation: `fadeUp ${0.75 + index * 0.08}s ease`,
+                }}
+              >
+                <div
+                  style={{
+                    width: "46px",
+                    height: "46px",
+                    borderRadius: "14px",
+                    background: "#eff6ff",
+                    color: "#2563eb",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    fontWeight: "800",
+                    marginBottom: "16px",
+                  }}
+                >
+                  {feature.number}
+                </div>
+
+                <h3
+                  style={{
+                    margin: 0,
+                    fontSize: "22px",
+                    lineHeight: 1.15,
+                    color: "#0f172a",
+                  }}
+                >
+                  {feature.title}
+                </h3>
+
+                <p
+                  style={{
+                    margin: "10px 0 0",
+                    color: "#64748b",
+                    fontSize: "15px",
+                    lineHeight: 1.75,
+                  }}
+                >
+                  {feature.description}
+                </p>
+              </Card>
+            ))}
+          </div>
+        </section>
+      </main>
+
+      <footer
+        style={{
+          borderTop: "1px solid #e2e8f0",
+          background: "#ffffff",
+        }}
+      >
+        <div
+          style={{
+            maxWidth: "1180px",
+            margin: "0 auto",
+            padding: isMobile ? "18px 14px 28px" : "20px",
+            display: "flex",
+            flexDirection: isMobile ? "column" : "row",
+            justifyContent: "space-between",
+            alignItems: isMobile ? "flex-start" : "center",
+            gap: "12px",
+          }}
+        >
+          <div>
+            <div
+              style={{
+                fontWeight: "800",
+                fontSize: "18px",
+                letterSpacing: "-0.03em",
+              }}
+            >
+              Street University
+            </div>
 
             <p
               style={{
+                margin: "6px 0 0",
                 color: "#64748b",
-                lineHeight: 1.7,
-                marginTop: 0,
-                marginBottom: "22px",
+                fontSize: "14px",
+                lineHeight: 1.6,
               }}
             >
-              Accède rapidement à ton profil, explore les scénarios disponibles
-              et continue ton entraînement.
+              Une plateforme de simulation et d’apprentissage pratique orientée
+              vers la vraie vie.
             </p>
+          </div>
 
-            <div
+          <div
+            style={{
+              display: "flex",
+              gap: "14px",
+              flexWrap: "wrap",
+            }}
+          >
+            <button
+              onClick={() => router.push("/auth/login")}
               style={{
-                display: "grid",
-                gridTemplateColumns: isMobile ? "1fr" : "repeat(3, 1fr)",
-                gap: "14px",
+                border: "none",
+                background: "transparent",
+                color: "#475569",
+                cursor: "pointer",
+                fontSize: "14px",
+                fontWeight: "600",
               }}
             >
-              <Card
-                style={{
-                  padding: "18px",
-                  borderRadius: "18px",
-                  background: "#f8fafc",
-                  boxShadow: "none",
-                }}
-              >
-                <div
-                  style={{
-                    fontSize: "13px",
-                    fontWeight: "700",
-                    color: "#2563eb",
-                    marginBottom: "8px",
-                  }}
-                >
-                  PROFIL
-                </div>
-                <div
-                  style={{
-                    fontSize: "15px",
-                    color: "#0f172a",
-                    lineHeight: 1.6,
-                  }}
-                >
-                  Consulte tes informations personnelles.
-                </div>
-              </Card>
+              Login
+            </button>
 
-              <Card
-                style={{
-                  padding: "18px",
-                  borderRadius: "18px",
-                  background: "#f8fafc",
-                  boxShadow: "none",
-                }}
-              >
-                <div
-                  style={{
-                    fontSize: "13px",
-                    fontWeight: "700",
-                    color: "#2563eb",
-                    marginBottom: "8px",
-                  }}
-                >
-                  SCÉNARIOS
-                </div>
-                <div
-                  style={{
-                    fontSize: "15px",
-                    color: "#0f172a",
-                    lineHeight: 1.6,
-                  }}
-                >
-                  Choisis une simulation pour t’entraîner.
-                </div>
-              </Card>
-
-              <Card
-                style={{
-                  padding: "18px",
-                  borderRadius: "18px",
-                  background: "#f8fafc",
-                  boxShadow: "none",
-                }}
-              >
-                <div
-                  style={{
-                    fontSize: "13px",
-                    fontWeight: "700",
-                    color: "#2563eb",
-                    marginBottom: "8px",
-                  }}
-                >
-                  SESSION
-                </div>
-                <div
-                  style={{
-                    fontSize: "15px",
-                    color: "#0f172a",
-                    lineHeight: 1.6,
-                  }}
-                >
-                  Continue ta progression avec l’IA.
-                </div>
-              </Card>
-            </div>
-
-            <div
+            <button
+              onClick={() => router.push("/auth/register")}
               style={{
-                display: "flex",
-                gap: "12px",
-                flexDirection: isMobile ? "column" : "row",
-                marginTop: "22px",
+                border: "none",
+                background: "transparent",
+                color: "#475569",
+                cursor: "pointer",
+                fontSize: "14px",
+                fontWeight: "600",
               }}
             >
-              <Button onClick={() => router.push("/scenarios")} fullWidth={isMobile}>
-                Voir les scénarios
-              </Button>
+              Register
+            </button>
 
-              <Button
-                variant="secondary"
-                onClick={() => router.push("/dashboard/profile")}
-                fullWidth={isMobile}
-              >
-                Voir mon profil
-              </Button>
-            </div>
-          </Card>
-
-          <Card>
-            <h3
+            <button
+              onClick={() => router.push("/dashboard")}
               style={{
-                marginTop: 0,
-                marginBottom: "16px",
-                color: "#0f172a",
-                fontSize: "22px",
+                border: "none",
+                background: "transparent",
+                color: "#475569",
+                cursor: "pointer",
+                fontSize: "14px",
+                fontWeight: "600",
               }}
             >
-              Informations utilisateur
-            </h3>
-
-            <div style={{ display: "grid", gap: "12px" }}>
-              <div
-                style={{
-                  padding: "14px",
-                  borderRadius: "14px",
-                  background: "#f8fafc",
-                  border: "1px solid #e2e8f0",
-                }}
-              >
-                <strong>Nom :</strong>
-                <p style={{ margin: "8px 0 0", color: "#475569" }}>
-                  {user?.full_name || "Non disponible"}
-                </p>
-              </div>
-
-              <div
-                style={{
-                  padding: "14px",
-                  borderRadius: "14px",
-                  background: "#f8fafc",
-                  border: "1px solid #e2e8f0",
-                }}
-              >
-                <strong>Email :</strong>
-                <p style={{ margin: "8px 0 0", color: "#475569" }}>
-                  {user?.email || "Non disponible"}
-                </p>
-              </div>
-
-              <div
-                style={{
-                  padding: "14px",
-                  borderRadius: "14px",
-                  background: "#f8fafc",
-                  border: "1px solid #e2e8f0",
-                }}
-              >
-                <strong>ID :</strong>
-                <p style={{ margin: "8px 0 0", color: "#475569" }}>
-                  {user?.id || "Non disponible"}
-                </p>
-              </div>
-            </div>
-
-            <div style={{ marginTop: "18px" }}>
-              <Button variant="danger" onClick={handleLogout} fullWidth>
-                Déconnexion
-              </Button>
-            </div>
-          </Card>
+              Dashboard
+            </button>
+          </div>
         </div>
-      </main>
+      </footer>
     </div>
   );
 }
