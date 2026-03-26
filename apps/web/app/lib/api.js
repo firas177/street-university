@@ -2,7 +2,6 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
 async function parseJsonSafe(res) {
   const text = await res.text();
-
   try {
     return text ? JSON.parse(text) : {};
   } catch {

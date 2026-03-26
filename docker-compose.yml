@@ -15,7 +15,7 @@ services:
     build: ./services/api
     container_name: streetu_api
     environment:
-      DATABASE_URL: postgresql+psycopg://streetu:streetu_pw@db:5432/streetu
+      DATABASE_URL: postgresql://streetu:streetu_pw@db:5432/streetu
     ports:
       - "8000:8000"
     depends_on:
