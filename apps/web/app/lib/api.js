@@ -108,8 +108,8 @@ export async function getScenarioById(token, scenarioId) {
   return data;
 }
 
-export async function sendSessionMessage(token, scenarioId, message, history = []) {
-  const res = await fetch(`${API_URL}/sessions/${scenarioId}/message`, {
+export async function startSession(token, scenarioId) {
+  const res = await fetch(`${API_URL}/sessions/start`, {
     method: "POST",
     headers: {
       Authorization: `Bearer ${token}`,
@@ -117,8 +117,47 @@ export async function sendSessionMessage(token, scenarioId, message, history = [
       Accept: "application/json",
     },
     body: JSON.stringify({
-      message,
-      history,
+      scenario_id: scenarioId,
+    }),
+  });
+
+  const data = await parseJsonSafe(res);
+
+  if (!res.ok) {
+    throw new Error(data?.detail || "Erreur lors du démarrage de la session");
+  }
+
+  return data;
+}
+
+export async function getSessionById(token, sessionId) {
+  const res = await fetch(`${API_URL}/sessions/${sessionId}`, {
+    method: "GET",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      Accept: "application/json",
+    },
+  });
+
+  const data = await parseJsonSafe(res);
+
+  if (!res.ok) {
+    throw new Error(data?.detail || "Erreur lors du chargement de la session");
+  }
+
+  return data;
+}
+
+export async function sendSessionMessage(token, sessionId, content) {
+  const res = await fetch(`${API_URL}/sessions/${sessionId}/message`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+      Accept: "application/json",
+    },
+    body: JSON.stringify({
+      content,
     }),
   });
 

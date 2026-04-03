@@ -1,6 +1,6 @@
 from fastapi import FastAPI, Depends, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 
 from .db import engine, Base, get_db
 from .dependencies import get_current_user, require_roles
@@ -144,6 +144,29 @@ def start_session(
     db.add(session)
     db.commit()
     db.refresh(session)
+
+    first_prompt = (
+        "Commence immédiatement la simulation. "
+        "Présente brièvement le contexte puis pose une première question claire. "
+        "Ne donne pas la réponse. "
+        "Une seule question à la fois."
+    )
+
+    assistant_text = generate_ai_reply(
+        system_prompt=scenario.system_prompt,
+        history=[],
+        user_message=first_prompt,
+    )
+
+    first_ai_message = models.Message(
+        session_id=session.id,
+        role="assistant",
+        content=assistant_text,
+    )
+    db.add(first_ai_message)
+    db.commit()
+
+    db.refresh(session)
     return session
 
 
@@ -209,18 +232,21 @@ def get_session_detail(
     db: Session = Depends(get_db),
     current_user=Depends(get_current_user),
 ):
-    session = db.query(models.Session).filter(models.Session.id == session_id).first()
+    session = (
+        db.query(models.Session)
+        .options(
+            joinedload(models.Session.scenario),
+            joinedload(models.Session.messages),
+        )
+        .filter(models.Session.id == session_id)
+        .first()
+    )
+
     if not session:
         raise HTTPException(status_code=404, detail="Session introuvable")
 
     if session.user_id != current_user.id and current_user.role != "admin":
         raise HTTPException(status_code=403, detail="Accès refusé")
 
-    messages = (
-        db.query(models.Message)
-        .filter(models.Message.session_id == session.id)
-        .order_by(models.Message.created_at.asc())
-        .all()
-    )
-    session.messages = messages
+    session.messages = sorted(session.messages, key=lambda msg: msg.created_at)
     return session

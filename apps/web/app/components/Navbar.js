@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 
-function NavItem({ label, active, onClick }) {
+function NavItem({ label, active, onClick, danger = false }) {
   const [hovered, setHovered] = useState(false);
 
   return (
@@ -14,13 +14,19 @@ function NavItem({ label, active, onClick }) {
       style={{
         padding: "10px 14px",
         borderRadius: "14px",
-        border: active ? "1px solid #bfdbfe" : "1px solid #cbd5e1",
-        background: active
+        border: danger
+          ? "1px solid #fecaca"
+          : active
+          ? "1px solid #bfdbfe"
+          : "1px solid #cbd5e1",
+        background: danger
+          ? "#fff5f5"
+          : active
           ? "linear-gradient(135deg, #eff6ff, #ffffff)"
           : "#ffffff",
-        color: active ? "#1d4ed8" : "#0f172a",
+        color: danger ? "#dc2626" : active ? "#1d4ed8" : "#0f172a",
         cursor: "pointer",
-        fontWeight: active ? "700" : "600",
+        fontWeight: active || danger ? "700" : "600",
         width: "100%",
         transition: "all 0.2s ease",
         boxShadow: hovered
@@ -37,7 +43,10 @@ function NavItem({ label, active, onClick }) {
 export default function Navbar() {
   const router = useRouter();
   const pathname = usePathname();
+
   const [isMobile, setIsMobile] = useState(false);
+  const [hasToken, setHasToken] = useState(false);
+  const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
     function handleResize() {
@@ -47,8 +56,64 @@ export default function Navbar() {
     handleResize();
     window.addEventListener("resize", handleResize);
 
+    const token = localStorage.getItem("token");
+    setHasToken(!!token);
+    setMounted(true);
+
     return () => window.removeEventListener("resize", handleResize);
   }, []);
+
+  function handleLogout() {
+    localStorage.removeItem("token");
+    setHasToken(false);
+    router.replace("/");
+  }
+
+  if (!mounted) return null;
+
+  const guestItems = [
+    {
+      label: "Accueil",
+      active: pathname === "/",
+      onClick: () => router.push("/"),
+    },
+    {
+      label: "Connexion",
+      active: pathname === "/auth/login",
+      onClick: () => router.push("/auth/login"),
+    },
+    {
+      label: "Inscription",
+      active: pathname === "/auth/register",
+      onClick: () => router.push("/auth/register"),
+    },
+  ];
+
+  const authItems = [
+    {
+      label: "Accueil",
+      active: pathname === "/" || pathname === "/dashboard",
+      onClick: () => router.push("/"),
+    },
+    {
+      label: "Profil",
+      active: pathname === "/dashboard/profile",
+      onClick: () => router.push("/dashboard/profile"),
+    },
+    {
+      label: "Scénarios",
+      active: pathname === "/scenarios" || pathname.startsWith("/session/"),
+      onClick: () => router.push("/scenarios"),
+    },
+    {
+      label: "Déconnexion",
+      active: false,
+      onClick: handleLogout,
+      danger: true,
+    },
+  ];
+
+  const items = hasToken ? authItems : guestItems;
 
   return (
     <nav
@@ -76,7 +141,7 @@ export default function Navbar() {
         }}
       >
         <div
-          onClick={() => router.push("/dashboard")}
+          onClick={() => router.push(hasToken ? "/scenarios" : "/")}
           style={{
             fontWeight: "800",
             fontSize: isMobile ? "22px" : "20px",
@@ -92,28 +157,22 @@ export default function Navbar() {
         <div
           style={{
             display: "grid",
-            gridTemplateColumns: isMobile ? "1fr 1fr 1fr" : "repeat(3, auto)",
+            gridTemplateColumns: isMobile
+              ? `repeat(${items.length}, 1fr)`
+              : `repeat(${items.length}, auto)`,
             gap: "10px",
             width: isMobile ? "100%" : "auto",
           }}
         >
-          <NavItem
-            label="Dashboard"
-            active={pathname === "/dashboard"}
-            onClick={() => router.push("/dashboard")}
-          />
-
-          <NavItem
-            label="Profil"
-            active={pathname === "/dashboard/profile"}
-            onClick={() => router.push("/dashboard/profile")}
-          />
-
-          <NavItem
-            label="Scénarios"
-            active={pathname === "/scenarios"}
-            onClick={() => router.push("/scenarios")}
-          />
+          {items.map((item) => (
+            <NavItem
+              key={item.label}
+              label={item.label}
+              active={item.active}
+              onClick={item.onClick}
+              danger={item.danger}
+            />
+          ))}
         </div>
       </div>
     </nav>

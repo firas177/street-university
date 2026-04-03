@@ -42,6 +42,18 @@ class ScenarioOut(BaseModel):
     difficulty: int
     system_prompt: str
     created_by: str
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class ScenarioMiniOut(BaseModel):
+    id: str
+    title: str
+    description: Optional[str] = None
+    category: str
+    difficulty: int
 
     class Config:
         from_attributes = True
@@ -56,6 +68,7 @@ class SessionOut(BaseModel):
     user_id: str
     scenario_id: str
     status: str
+    created_at: datetime
 
     class Config:
         from_attributes = True
@@ -70,6 +83,7 @@ class MessageOut(BaseModel):
     session_id: str
     role: str
     content: str
+    created_at: datetime
 
     class Config:
         from_attributes = True
@@ -80,6 +94,8 @@ class SessionDetailOut(BaseModel):
     user_id: str
     scenario_id: str
     status: str
+    created_at: datetime
+    scenario: Optional[ScenarioMiniOut] = None
     messages: List[MessageOut] = []
 
     class Config:

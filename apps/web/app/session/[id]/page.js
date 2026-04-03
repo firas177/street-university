@@ -7,43 +7,16 @@ import Button from "../../components/ui/Button";
 import Card from "../../components/ui/Card";
 import Alert from "../../components/ui/Alert";
 import PageHeader from "../../components/ui/PageHeader";
-import { getScenarioById, sendSessionMessage } from "../../lib/api";
-
-const fallbackScenarioMap = {
-  "job-interview": {
-    title: "Entretien d'embauche",
-    subtitle: "Simulation de recrutement",
-    intro:
-      "Bonjour. Je suis votre recruteur aujourd’hui. Présentez-vous brièvement et expliquez pourquoi vous êtes un bon candidat.",
-  },
-  "investor-pitch": {
-    title: "Pitch investisseur",
-    subtitle: "Simulation de présentation",
-    intro:
-      "Bonjour. Vous avez 60 secondes pour me convaincre que votre projet mérite un investissement. Je vous écoute.",
-  },
-  negotiation: {
-    title: "Négociation",
-    subtitle: "Simulation de discussion stratégique",
-    intro:
-      "Nous avons une proposition à discuter. Défendez votre position et essayez d’obtenir un meilleur accord.",
-  },
-  leadership: {
-    title: "Leadership & prise de parole",
-    subtitle: "Simulation de communication d’impact",
-    intro:
-      "Vous êtes devant une équipe. Donnez une prise de parole claire, structurée et motivante.",
-  },
-};
+import { getSessionById, sendSessionMessage } from "../../lib/api";
 
 export default function SessionPage() {
   const router = useRouter();
   const params = useParams();
-  const scenarioId = params?.id;
+  const sessionId = params?.id;
 
   const [isMobile, setIsMobile] = useState(false);
-  const [scenarioData, setScenarioData] = useState(null);
-  const [loadingScenario, setLoadingScenario] = useState(true);
+  const [sessionData, setSessionData] = useState(null);
+  const [loadingSession, setLoadingSession] = useState(true);
   const [sessionError, setSessionError] = useState("");
   const [input, setInput] = useState("");
   const [isSending, setIsSending] = useState(false);
@@ -66,85 +39,67 @@ export default function SessionPage() {
   }, [messages, isSending]);
 
   useEffect(() => {
-    async function loadScenario() {
+    async function loadSession() {
       try {
         const token = localStorage.getItem("token");
 
         if (!token) {
-          setSessionError("Aucun token trouvé. Merci de vous reconnecter.");
-          setLoadingScenario(false);
+          router.replace("/auth/login");
           return;
         }
 
-        const data = await getScenarioById(token, scenarioId);
+        const data = await getSessionById(token, sessionId);
+        setSessionData(data);
 
-        const normalizedScenario = {
-          title:
-            data?.title ||
-            data?.name ||
-            fallbackScenarioMap[scenarioId]?.title ||
-            "Session",
-          subtitle:
-            data?.subtitle ||
-            data?.category ||
-            fallbackScenarioMap[scenarioId]?.subtitle ||
-            "Simulation",
-          intro:
-            data?.intro ||
-            data?.opening_message ||
-            data?.first_message ||
-            fallbackScenarioMap[scenarioId]?.intro ||
-            "Bienvenue dans cette session. Commencez votre réponse.",
-        };
+        const existingMessages = Array.isArray(data?.messages) ? data.messages : [];
 
-        setScenarioData(normalizedScenario);
-        setMessages([
-          {
-            role: "assistant",
-            content: normalizedScenario.intro,
-          },
-        ]);
-      } catch (err) {
-        const fallback = fallbackScenarioMap[scenarioId];
-
-        if (fallback) {
-          setScenarioData(fallback);
+        if (existingMessages.length > 0) {
+          setMessages(existingMessages);
+        } else {
           setMessages([
             {
               role: "assistant",
-              content: fallback.intro,
+              content:
+                "Bienvenue dans cette session. Commencez votre réponse pour démarrer la simulation.",
             },
           ]);
-          setSessionError(
-            "Le scénario backend n’a pas pu être chargé. Le mode local a été utilisé."
-          );
-        } else {
-          setSessionError(err.message || "Impossible de charger cette session.");
         }
+      } catch (err) {
+        const message =
+          err.message || "Impossible de charger cette session.";
+
+        if (
+          message.toLowerCase().includes("401") ||
+          message.toLowerCase().includes("403") ||
+          message.toLowerCase().includes("token")
+        ) {
+          localStorage.removeItem("token");
+          router.replace("/auth/login");
+          return;
+        }
+
+        setSessionError(message);
       } finally {
-        setLoadingScenario(false);
+        setLoadingSession(false);
       }
     }
 
-    if (scenarioId) {
-      loadScenario();
+    if (sessionId) {
+      loadSession();
     }
-  }, [scenarioId]);
+  }, [sessionId, router]);
 
-  const scenario = useMemo(() => {
-    return (
-      scenarioData || {
-        title: "Session",
-        subtitle: "Simulation",
-        intro:
-          "Bienvenue dans cette session. Commencez votre réponse et entraînez-vous comme dans une vraie situation.",
-      }
-    );
-  }, [scenarioData]);
+  const sessionTitle = useMemo(() => {
+    return sessionData?.scenario?.title || "Session";
+  }, [sessionData]);
+
+  const sessionSubtitle = useMemo(() => {
+    return sessionData?.scenario?.category || "Simulation";
+  }, [sessionData]);
 
   function handleLogout() {
     localStorage.removeItem("token");
-    router.push("/auth/login");
+    router.replace("/auth/login");
   }
 
   async function handleSend() {
@@ -153,8 +108,7 @@ export default function SessionPage() {
     const token = localStorage.getItem("token");
 
     if (!token) {
-      setSessionError("Session expirée. Merci de vous reconnecter.");
-      router.push("/auth/login");
+      router.replace("/auth/login");
       return;
     }
 
@@ -165,32 +119,16 @@ export default function SessionPage() {
       content: trimmedInput,
     };
 
-    const updatedMessages = [...messages, userMessage];
-
-    setMessages(updatedMessages);
+    setMessages((prev) => [...prev, userMessage]);
     setInput("");
     setIsSending(true);
     setSessionError("");
 
     try {
-      const historyPayload = updatedMessages.map((msg) => ({
-        role: msg.role,
-        content: msg.content,
-      }));
-
-      const data = await sendSessionMessage(
-        token,
-        scenarioId,
-        trimmedInput,
-        historyPayload
-      );
+      const data = await sendSessionMessage(token, sessionId, trimmedInput);
 
       const assistantReply =
-        data?.reply ||
-        data?.message ||
-        data?.assistant_message ||
-        data?.response ||
-        "Aucune réponse reçue du backend.";
+        data?.content || "Aucune réponse reçue du backend.";
 
       setMessages((prev) => [
         ...prev,
@@ -200,7 +138,20 @@ export default function SessionPage() {
         },
       ]);
     } catch (err) {
-      setSessionError(err.message || "Erreur lors de l’envoi du message.");
+      const message =
+        err.message || "Erreur lors de l’envoi du message.";
+
+      if (
+        message.toLowerCase().includes("401") ||
+        message.toLowerCase().includes("403") ||
+        message.toLowerCase().includes("token")
+      ) {
+        localStorage.removeItem("token");
+        router.replace("/auth/login");
+        return;
+      }
+
+      setSessionError(message);
       setMessages((prev) => [
         ...prev,
         {
@@ -221,7 +172,7 @@ export default function SessionPage() {
     }
   }
 
-  if (loadingScenario) {
+  if (loadingSession) {
     return (
       <div style={{ minHeight: "100vh", background: "#f8fafc" }}>
         <Navbar />
@@ -238,7 +189,7 @@ export default function SessionPage() {
     );
   }
 
-  if (!scenarioData && sessionError) {
+  if (!sessionData && sessionError) {
     return (
       <div style={{ minHeight: "100vh", background: "#f8fafc" }}>
         <Navbar />
@@ -302,8 +253,8 @@ export default function SessionPage() {
       >
         <PageHeader
           dark
-          badge={scenario.subtitle}
-          title={scenario.title}
+          badge={sessionSubtitle}
+          title={sessionTitle}
           description="Entraîne-toi avec une vraie session connectée au backend."
         />
 
@@ -346,7 +297,7 @@ export default function SessionPage() {
                   boxShadow: "none",
                 }}
               >
-                <strong>ID scénario :</strong>
+                <strong>ID session :</strong>
                 <p
                   style={{
                     margin: "8px 0 0",
@@ -354,7 +305,7 @@ export default function SessionPage() {
                     wordBreak: "break-word",
                   }}
                 >
-                  {scenarioId}
+                  {sessionId}
                 </p>
               </Card>
 
@@ -366,9 +317,9 @@ export default function SessionPage() {
                   boxShadow: "none",
                 }}
               >
-                <strong>Mode :</strong>
+                <strong>Statut :</strong>
                 <p style={{ margin: "8px 0 0", color: "#475569" }}>
-                  Session connectée au backend
+                  {sessionData?.status || "active"}
                 </p>
               </Card>
             </div>
@@ -429,7 +380,7 @@ export default function SessionPage() {
 
                 return (
                   <div
-                    key={index}
+                    key={message.id || index}
                     style={{
                       display: "flex",
                       justifyContent: isUser ? "flex-end" : "flex-start",
