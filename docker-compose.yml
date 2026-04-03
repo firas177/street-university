@@ -14,8 +14,17 @@ services:
   api:
     build: ./services/api
     container_name: streetu_api
+    env_file:
+      - .env
     environment:
-      DATABASE_URL: postgresql://streetu:streetu_pw@db:5432/streetu
+      DATABASE_URL: ${DATABASE_URL}
+      SECRET_KEY: ${SECRET_KEY}
+      ALGORITHM: ${ALGORITHM}
+      ACCESS_TOKEN_EXPIRE_MINUTES: ${ACCESS_TOKEN_EXPIRE_MINUTES}
+      AI_PROVIDER: ${AI_PROVIDER}
+      AI_API_KEY: ${AI_API_KEY}
+      AI_API_URL: ${AI_API_URL}
+      AI_MODEL: ${AI_MODEL}
     ports:
       - "8000:8000"
     depends_on:
@@ -24,8 +33,10 @@ services:
   web:
     build: ./apps/web
     container_name: streetu_web
+    env_file:
+      - .env
     environment:
-      NEXT_PUBLIC_API_URL: http://localhost:8000
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL}
     ports:
       - "3000:3000"
     depends_on:
