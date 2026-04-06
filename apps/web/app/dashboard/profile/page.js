@@ -2,575 +2,279 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { getProfile } from "../../lib/api";
 import Navbar from "../../components/Navbar";
-import Button from "../../components/ui/Button";
-import Card from "../../components/ui/Card";
-import PageHeader from "../../components/ui/PageHeader";
-import Alert from "../../components/ui/Alert";
+import { getMe } from "../../lib/api";
 
 export default function ProfilePage() {
   const router = useRouter();
-  const [user, setUser] = useState(null);
-  const [error, setError] = useState("");
+  const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [isMobile, setIsMobile] = useState(false);
+  const [error, setError] = useState("");
 
   useEffect(() => {
-    function handleResize() {
-      setIsMobile(window.innerWidth < 768);
-    }
-
-    handleResize();
-    window.addEventListener("resize", handleResize);
-    return () => window.removeEventListener("resize", handleResize);
-  }, []);
-
-  useEffect(() => {
-    async function loadProfile() {
-      const token = localStorage.getItem("token");
-
-      if (!token) {
-        router.push("/auth/login");
-        return;
-      }
-
+    const loadProfile = async () => {
       try {
-        const data = await getProfile(token);
-        setUser(data);
+        const token = localStorage.getItem("token");
+
+        if (!token) {
+          router.replace("/auth/login");
+          return;
+        }
+
+        const data = await getMe(token);
+        setProfile(data);
       } catch (err) {
-        setError(err?.message || "Impossible de charger le profil.");
+        setError(err.message || "Erreur lors du chargement du profil");
       } finally {
         setLoading(false);
       }
-    }
+    };
 
     loadProfile();
   }, [router]);
 
-  function handleLogout() {
-    localStorage.removeItem("token");
-    router.push("/auth/login");
-  }
-
-  if (loading) {
-    return (
-      <div style={{ minHeight: "100vh", background: "#f8fafc" }}>
-        <Navbar />
-        <div
-          style={{
-            maxWidth: "1000px",
-            margin: "0 auto",
-            padding: isMobile ? "24px 14px" : "40px 20px",
-            fontSize: "18px",
-            color: "#334155",
-          }}
-        >
-          Chargement du profil...
-        </div>
-      </div>
-    );
-  }
-
   return (
-    <div style={{ minHeight: "100vh", background: "#f8fafc" }}>
-      <style jsx>{`
-        @keyframes fadeUp {
-          from {
-            opacity: 0;
-            transform: translateY(18px);
-          }
-          to {
-            opacity: 1;
-            transform: translateY(0);
-          }
-        }
-
-        @keyframes softPulse {
-          0% {
-            transform: scale(1);
-            opacity: 0.9;
-          }
-          50% {
-            transform: scale(1.05);
-            opacity: 1;
-          }
-          100% {
-            transform: scale(1);
-            opacity: 0.9;
-          }
-        }
-      `}</style>
-
+    <div
+      style={{
+        minHeight: "100vh",
+        background: "linear-gradient(to bottom, #f8fafc, #e2e8f0)",
+      }}
+    >
       <Navbar />
 
-      <main
-        style={{
-          maxWidth: "1100px",
-          margin: "0 auto",
-          padding: isMobile ? "20px 14px 30px" : "32px 20px 40px",
-        }}
-      >
-        <PageHeader
-          dark
-          badge="Mon profil"
-          title={user?.full_name || "Profil utilisateur"}
-          description="Voici les informations récupérées depuis ton backend, présentées dans une interface plus moderne et plus claire."
-        />
-
-        {error && (
-          <Alert type="error" style={{ marginBottom: "18px" }}>
-            {error}
-          </Alert>
-        )}
-
-        <section
+      <main style={{ maxWidth: "1200px", margin: "0 auto", padding: "32px 20px" }}>
+        <div
           style={{
-            display: "grid",
-            gridTemplateColumns: isMobile ? "1fr" : "1.05fr 0.95fr",
-            gap: "18px",
-            alignItems: "start",
+            background: "linear-gradient(135deg, #1e3a8a, #0f172a)",
+            borderRadius: "32px",
+            padding: "40px",
+            color: "white",
+            marginBottom: "28px",
           }}
         >
           <div
             style={{
-              display: "grid",
-              gap: "18px",
-              animation: "fadeUp 0.45s ease",
+              display: "inline-block",
+              padding: "8px 16px",
+              borderRadius: "999px",
+              background: "rgba(255,255,255,0.12)",
+              border: "1px solid rgba(255,255,255,0.18)",
+              marginBottom: "18px",
+              fontWeight: 600,
             }}
           >
-            <Card
-              hoverable
+            Mon profil
+          </div>
+
+          <h1
+            style={{
+              fontSize: "3rem",
+              fontWeight: 800,
+              margin: 0,
+              marginBottom: "12px",
+            }}
+          >
+            Profil utilisateur
+          </h1>
+
+          <p
+            style={{
+              margin: 0,
+              fontSize: "1.1rem",
+              lineHeight: 1.7,
+              color: "rgba(255,255,255,0.9)",
+            }}
+          >
+            Voici les informations principales de votre compte.
+          </p>
+        </div>
+
+        {loading && (
+          <div
+            style={{
+              background: "#fff",
+              border: "1px solid #e2e8f0",
+              borderRadius: "20px",
+              padding: "20px",
+            }}
+          >
+            Chargement du profil...
+          </div>
+        )}
+
+        {error && !loading && (
+          <div
+            style={{
+              background: "#fee2e2",
+              border: "1px solid #fecaca",
+              color: "#991b1b",
+              borderRadius: "20px",
+              padding: "16px",
+              marginBottom: "20px",
+            }}
+          >
+            {error}
+          </div>
+        )}
+
+        {!loading && !error && profile && (
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "1fr 1fr",
+              gap: "20px",
+            }}
+          >
+            <div
               style={{
-                position: "relative",
-                overflow: "hidden",
+                background: "#fff",
+                border: "1px solid #e2e8f0",
                 borderRadius: "28px",
-                padding: isMobile ? "22px 18px" : "28px",
-                background:
-                  "radial-gradient(circle at top right, rgba(59,130,246,0.12), transparent 28%), #ffffff",
+                padding: "32px",
               }}
             >
-              <div
-                style={{
-                  position: "absolute",
-                  top: "-35px",
-                  right: "-20px",
-                  width: "130px",
-                  height: "130px",
-                  borderRadius: "999px",
-                  background: "rgba(37,99,235,0.08)",
-                  animation: "softPulse 3.2s ease-in-out infinite",
-                }}
-              />
-
-              <p
-                style={{
-                  margin: 0,
-                  color: "#2563eb",
-                  fontWeight: "700",
-                  fontSize: "13px",
-                  letterSpacing: "0.03em",
-                  position: "relative",
-                  zIndex: 1,
-                }}
-              >
+              <p style={{ color: "#2563eb", fontWeight: 700, marginBottom: "8px" }}>
                 IDENTITÉ
               </p>
-
               <h2
                 style={{
-                  margin: "10px 0 10px",
-                  fontSize: isMobile ? "28px" : "34px",
-                  lineHeight: 1.05,
-                  letterSpacing: "-0.03em",
+                  fontSize: "2.4rem",
+                  fontWeight: 800,
                   color: "#0f172a",
-                  position: "relative",
-                  zIndex: 1,
+                  marginTop: 0,
+                  marginBottom: "18px",
                 }}
               >
                 Un aperçu de ton compte.
               </h2>
-
-              <p
-                style={{
-                  margin: 0,
-                  color: "#64748b",
-                  lineHeight: 1.75,
-                  fontSize: "15px",
-                  maxWidth: "680px",
-                  position: "relative",
-                  zIndex: 1,
-                }}
-              >
-                Cette page affiche les données principales de l’utilisateur
-                connectée au backend, avec une présentation plus propre et plus
-                premium.
+              <p style={{ color: "#64748b", lineHeight: 1.7, marginBottom: "28px" }}>
+                Cette page affiche les données principales de l’utilisateur connecté au backend.
               </p>
 
-              <div
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: isMobile ? "1fr" : "repeat(3, 1fr)",
-                  gap: "14px",
-                  marginTop: "22px",
-                  position: "relative",
-                  zIndex: 1,
-                }}
-              >
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "14px" }}>
                 <div
                   style={{
-                    padding: "16px",
+                    border: "1px solid #dbeafe",
                     borderRadius: "18px",
+                    padding: "18px",
                     background: "#f8fafc",
-                    border: "1px solid #e2e8f0",
                   }}
                 >
-                  <div
-                    style={{
-                      fontSize: "13px",
-                      fontWeight: "800",
-                      color: "#2563eb",
-                      marginBottom: "8px",
-                    }}
-                  >
-                    NOM
-                  </div>
-                  <div
-                    style={{
-                      color: "#334155",
-                      lineHeight: 1.6,
-                      fontSize: "14px",
-                      wordBreak: "break-word",
-                    }}
-                  >
-                    {user?.full_name || "Non disponible"}
-                  </div>
+                  <div style={{ color: "#2563eb", fontWeight: 700, marginBottom: 8 }}>NOM</div>
+                  <div style={{ color: "#334155" }}>{profile.full_name || "Non disponible"}</div>
                 </div>
 
                 <div
                   style={{
-                    padding: "16px",
+                    border: "1px solid #dbeafe",
                     borderRadius: "18px",
+                    padding: "18px",
                     background: "#f8fafc",
-                    border: "1px solid #e2e8f0",
                   }}
                 >
-                  <div
-                    style={{
-                      fontSize: "13px",
-                      fontWeight: "800",
-                      color: "#2563eb",
-                      marginBottom: "8px",
-                    }}
-                  >
-                    EMAIL
-                  </div>
-                  <div
-                    style={{
-                      color: "#334155",
-                      lineHeight: 1.6,
-                      fontSize: "14px",
-                      wordBreak: "break-word",
-                    }}
-                  >
-                    {user?.email || "Non disponible"}
-                  </div>
+                  <div style={{ color: "#2563eb", fontWeight: 700, marginBottom: 8 }}>EMAIL</div>
+                  <div style={{ color: "#334155" }}>{profile.email || "Non disponible"}</div>
                 </div>
 
                 <div
                   style={{
-                    padding: "16px",
+                    border: "1px solid #dbeafe",
                     borderRadius: "18px",
+                    padding: "18px",
                     background: "#f8fafc",
-                    border: "1px solid #e2e8f0",
                   }}
                 >
-                  <div
-                    style={{
-                      fontSize: "13px",
-                      fontWeight: "800",
-                      color: "#2563eb",
-                      marginBottom: "8px",
-                    }}
-                  >
+                  <div style={{ color: "#2563eb", fontWeight: 700, marginBottom: 8 }}>
                     IDENTIFIANT
                   </div>
-                  <div
-                    style={{
-                      color: "#334155",
-                      lineHeight: 1.6,
-                      fontSize: "14px",
-                      wordBreak: "break-word",
-                    }}
-                  >
-                    {user?.id || "Non disponible"}
-                  </div>
+                  <div style={{ color: "#334155" }}>{profile.id || "Non disponible"}</div>
                 </div>
               </div>
-            </Card>
+            </div>
 
             <div
               style={{
-                display: "grid",
-                gridTemplateColumns: isMobile ? "1fr" : "repeat(2, 1fr)",
-                gap: "18px",
-                animation: "fadeUp 0.55s ease",
-              }}
-            >
-              <Card hoverable style={{ borderRadius: "24px", padding: "22px" }}>
-                <div
-                  style={{
-                    width: "46px",
-                    height: "46px",
-                    borderRadius: "14px",
-                    background: "#eff6ff",
-                    color: "#2563eb",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    fontWeight: "800",
-                    marginBottom: "14px",
-                  }}
-                >
-                  01
-                </div>
-                <h3
-                  style={{
-                    margin: 0,
-                    color: "#0f172a",
-                    fontSize: "22px",
-                    lineHeight: 1.12,
-                  }}
-                >
-                  Compte actif
-                </h3>
-                <p
-                  style={{
-                    margin: "10px 0 0",
-                    color: "#64748b",
-                    lineHeight: 1.7,
-                    fontSize: "14px",
-                  }}
-                >
-                  Les données affichées viennent de l’utilisateur connecté.
-                </p>
-              </Card>
-
-              <Card hoverable style={{ borderRadius: "24px", padding: "22px" }}>
-                <div
-                  style={{
-                    width: "46px",
-                    height: "46px",
-                    borderRadius: "14px",
-                    background: "#eff6ff",
-                    color: "#2563eb",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    fontWeight: "800",
-                    marginBottom: "14px",
-                  }}
-                >
-                  02
-                </div>
-                <h3
-                  style={{
-                    margin: 0,
-                    color: "#0f172a",
-                    fontSize: "22px",
-                    lineHeight: 1.12,
-                  }}
-                >
-                  Accès sécurisé
-                </h3>
-                <p
-                  style={{
-                    margin: "10px 0 0",
-                    color: "#64748b",
-                    lineHeight: 1.7,
-                    fontSize: "14px",
-                  }}
-                >
-                  Sans token, la page redirige automatiquement vers login.
-                </p>
-              </Card>
-            </div>
-          </div>
-
-          <div
-            style={{
-              display: "grid",
-              gap: "18px",
-              animation: "fadeUp 0.65s ease",
-            }}
-          >
-            <Card
-              hoverable
-              style={{
+                background: "#fff",
+                border: "1px solid #e2e8f0",
                 borderRadius: "28px",
-                padding: isMobile ? "22px 18px" : "26px",
-                background:
-                  "linear-gradient(135deg, rgba(239,246,255,1), rgba(255,255,255,1))",
+                padding: "32px",
               }}
             >
-              <p
-                style={{
-                  margin: 0,
-                  color: "#2563eb",
-                  fontWeight: "700",
-                  fontSize: "13px",
-                  letterSpacing: "0.03em",
-                }}
-              >
+              <p style={{ color: "#2563eb", fontWeight: 700, marginBottom: "8px" }}>
                 DÉTAILS
               </p>
-
               <h2
                 style={{
-                  margin: "10px 0 18px",
+                  fontSize: "2rem",
+                  fontWeight: 800,
                   color: "#0f172a",
-                  fontSize: isMobile ? "24px" : "28px",
-                  lineHeight: 1.08,
-                  letterSpacing: "-0.03em",
+                  marginTop: 0,
+                  marginBottom: "20px",
                 }}
               >
                 Informations principales
               </h2>
 
-              <div style={{ display: "grid", gap: "12px" }}>
+              <div style={{ display: "grid", gap: "16px" }}>
                 <div
                   style={{
-                    padding: "15px",
-                    borderRadius: "18px",
-                    background: "#ffffff",
                     border: "1px solid #dbeafe",
-                    boxShadow: "0 8px 18px rgba(37,99,235,0.06)",
+                    borderRadius: "18px",
+                    padding: "18px",
+                    background: "#f8fafc",
                   }}
                 >
-                  <strong style={{ color: "#0f172a" }}>Nom complet</strong>
-                  <p
-                    style={{
-                      margin: "8px 0 0",
-                      color: "#475569",
-                      lineHeight: 1.6,
-                      wordBreak: "break-word",
-                    }}
-                  >
-                    {user?.full_name || "Non disponible"}
-                  </p>
+                  <div style={{ fontWeight: 700, color: "#0f172a", marginBottom: 8 }}>
+                    Nom complet
+                  </div>
+                  <div style={{ color: "#475569" }}>{profile.full_name || "Non disponible"}</div>
                 </div>
 
                 <div
                   style={{
-                    padding: "15px",
-                    borderRadius: "18px",
-                    background: "#ffffff",
                     border: "1px solid #dbeafe",
-                    boxShadow: "0 8px 18px rgba(37,99,235,0.06)",
+                    borderRadius: "18px",
+                    padding: "18px",
+                    background: "#f8fafc",
                   }}
                 >
-                  <strong style={{ color: "#0f172a" }}>Adresse email</strong>
-                  <p
-                    style={{
-                      margin: "8px 0 0",
-                      color: "#475569",
-                      lineHeight: 1.6,
-                      wordBreak: "break-word",
-                    }}
-                  >
-                    {user?.email || "Non disponible"}
-                  </p>
+                  <div style={{ fontWeight: 700, color: "#0f172a", marginBottom: 8 }}>
+                    Adresse email
+                  </div>
+                  <div style={{ color: "#475569" }}>{profile.email || "Non disponible"}</div>
                 </div>
 
                 <div
                   style={{
-                    padding: "15px",
-                    borderRadius: "18px",
-                    background: "#ffffff",
                     border: "1px solid #dbeafe",
-                    boxShadow: "0 8px 18px rgba(37,99,235,0.06)",
+                    borderRadius: "18px",
+                    padding: "18px",
+                    background: "#f8fafc",
                   }}
                 >
-                  <strong style={{ color: "#0f172a" }}>ID utilisateur</strong>
-                  <p
-                    style={{
-                      margin: "8px 0 0",
-                      color: "#475569",
-                      lineHeight: 1.6,
-                      wordBreak: "break-word",
-                    }}
-                  >
-                    {user?.id || "Non disponible"}
-                  </p>
+                  <div style={{ fontWeight: 700, color: "#0f172a", marginBottom: 8 }}>Rôle</div>
+                  <div style={{ color: "#475569" }}>{profile.role || "student"}</div>
+                </div>
+
+                <div
+                  style={{
+                    border: "1px solid #dbeafe",
+                    borderRadius: "18px",
+                    padding: "18px",
+                    background: "#f8fafc",
+                  }}
+                >
+                  <div style={{ fontWeight: 700, color: "#0f172a", marginBottom: 8 }}>
+                    Identifiant utilisateur
+                  </div>
+                  <div style={{ color: "#475569", wordBreak: "break-word" }}>
+                    {profile.id || "Non disponible"}
+                  </div>
                 </div>
               </div>
-            </Card>
-
-            <Card
-              hoverable
-              style={{
-                borderRadius: "28px",
-                padding: isMobile ? "22px 18px" : "26px",
-              }}
-            >
-              <h3
-                style={{
-                  marginTop: 0,
-                  marginBottom: "10px",
-                  color: "#0f172a",
-                  fontSize: "24px",
-                  lineHeight: 1.1,
-                }}
-              >
-                Actions rapides
-              </h3>
-
-              <p
-                style={{
-                  marginTop: 0,
-                  color: "#64748b",
-                  lineHeight: 1.7,
-                  fontSize: "14px",
-                }}
-              >
-                Navigue rapidement entre le dashboard, ton profil et la
-                déconnexion.
-              </p>
-
-              <div
-                style={{
-                  display: "grid",
-                  gap: "12px",
-                  marginTop: "16px",
-                }}
-              >
-                <Button
-                  variant="blue"
-                  onClick={() => router.push("/dashboard")}
-                  fullWidth
-                >
-                  Retour au dashboard
-                </Button>
-
-                <Button
-                  variant="secondary"
-                  onClick={() => router.push("/scenarios")}
-                  fullWidth
-                >
-                  Aller aux scénarios
-                </Button>
-
-                <Button
-                  variant="danger"
-                  onClick={handleLogout}
-                  fullWidth
-                >
-                  Déconnexion
-                </Button>
-              </div>
-            </Card>
+            </div>
           </div>
-        </section>
+        )}
       </main>
     </div>
   );

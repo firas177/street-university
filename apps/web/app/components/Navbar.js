@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 
-function NavItem({ label, active, onClick, danger = false }) {
+function NavItem({ label, active, onClick }) {
   const [hovered, setHovered] = useState(false);
 
   return (
@@ -14,25 +14,18 @@ function NavItem({ label, active, onClick, danger = false }) {
       style={{
         padding: "10px 14px",
         borderRadius: "14px",
-        border: danger
-          ? "1px solid #fecaca"
-          : active
-          ? "1px solid #bfdbfe"
-          : "1px solid #cbd5e1",
-        background: danger
-          ? "#fff5f5"
-          : active
+        border: active ? "1px solid #bfdbfe" : "1px solid #cbd5e1",
+        background: active
           ? "linear-gradient(135deg, #eff6ff, #ffffff)"
+          : hovered
+          ? "#f8fafc"
           : "#ffffff",
-        color: danger ? "#dc2626" : active ? "#1d4ed8" : "#0f172a",
+        color: active ? "#1d4ed8" : "#0f172a",
         cursor: "pointer",
-        fontWeight: active || danger ? "700" : "600",
-        width: "100%",
+        fontWeight: active ? "700" : "600",
         transition: "all 0.2s ease",
-        boxShadow: hovered
-          ? "0 10px 22px rgba(15,23,42,0.08)"
-          : "0 4px 12px rgba(15,23,42,0.03)",
-        transform: hovered ? "translateY(-1px)" : "translateY(0)",
+        boxShadow: hovered ? "0 8px 20px rgba(15, 23, 42, 0.06)" : "none",
+        whiteSpace: "nowrap",
       }}
     >
       {label}
@@ -44,137 +37,127 @@ export default function Navbar() {
   const router = useRouter();
   const pathname = usePathname();
 
-  const [isMobile, setIsMobile] = useState(false);
-  const [hasToken, setHasToken] = useState(false);
   const [mounted, setMounted] = useState(false);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
 
   useEffect(() => {
-    function handleResize() {
-      setIsMobile(window.innerWidth < 768);
-    }
-
-    handleResize();
-    window.addEventListener("resize", handleResize);
-
-    const token = localStorage.getItem("token");
-    setHasToken(!!token);
     setMounted(true);
+    const token = localStorage.getItem("token");
+    setIsAuthenticated(!!token);
+  }, [pathname]);
 
-    return () => window.removeEventListener("resize", handleResize);
-  }, []);
-
-  function handleLogout() {
+  const handleLogout = () => {
     localStorage.removeItem("token");
-    setHasToken(false);
-    router.replace("/");
-  }
+    router.replace("/auth/login");
+  };
 
   if (!mounted) return null;
 
-  const guestItems = [
-    {
-      label: "Accueil",
-      active: pathname === "/",
-      onClick: () => router.push("/"),
-    },
-    {
-      label: "Connexion",
-      active: pathname === "/auth/login",
-      onClick: () => router.push("/auth/login"),
-    },
-    {
-      label: "Inscription",
-      active: pathname === "/auth/register",
-      onClick: () => router.push("/auth/register"),
-    },
+  const guestLinks = [
+    { label: "Accueil", path: "/" },
+    { label: "Connexion", path: "/auth/login" },
+    { label: "Inscription", path: "/auth/register" },
   ];
 
-  const authItems = [
-    {
-      label: "Accueil",
-      active: pathname === "/" || pathname === "/dashboard",
-      onClick: () => router.push("/"),
-    },
-    {
-      label: "Profil",
-      active: pathname === "/dashboard/profile",
-      onClick: () => router.push("/dashboard/profile"),
-    },
-    {
-      label: "Scénarios",
-      active: pathname === "/scenarios" || pathname.startsWith("/session/"),
-      onClick: () => router.push("/scenarios"),
-    },
-    {
-      label: "Déconnexion",
-      active: false,
-      onClick: handleLogout,
-      danger: true,
-    },
+  const authLinks = [
+    { label: "Accueil", path: "/" },
+    { label: "Scénarios", path: "/scenarios" },
+    { label: "Mes sessions", path: "/sessions" },
+    { label: "Profil", path: "/dashboard/profile" },
   ];
 
-  const items = hasToken ? authItems : guestItems;
+  const links = isAuthenticated ? authLinks : guestLinks;
 
   return (
-    <nav
+    <header
       style={{
-        width: "100%",
-        borderBottom: "1px solid rgba(226,232,240,0.8)",
-        background: "rgba(255,255,255,0.82)",
-        backdropFilter: "blur(14px)",
         position: "sticky",
         top: 0,
-        zIndex: 20,
-        boxShadow: "0 8px 24px rgba(15,23,42,0.04)",
+        zIndex: 50,
+        backdropFilter: "blur(12px)",
+        background: "rgba(255,255,255,0.85)",
+        borderBottom: "1px solid rgba(226,232,240,0.9)",
       }}
     >
       <div
         style={{
-          maxWidth: "1100px",
+          maxWidth: "1200px",
           margin: "0 auto",
-          padding: isMobile ? "14px" : "16px 20px",
+          padding: "16px 20px",
           display: "flex",
-          flexDirection: isMobile ? "column" : "row",
-          alignItems: isMobile ? "stretch" : "center",
+          alignItems: "center",
           justifyContent: "space-between",
-          gap: "12px",
+          gap: "16px",
+          flexWrap: "wrap",
         }}
       >
         <div
-          onClick={() => router.push(hasToken ? "/scenarios" : "/")}
+          onClick={() => router.push(isAuthenticated ? "/scenarios" : "/")}
           style={{
-            fontWeight: "800",
-            fontSize: isMobile ? "22px" : "20px",
-            color: "#0f172a",
             cursor: "pointer",
-            textAlign: isMobile ? "center" : "left",
-            letterSpacing: "-0.03em",
+            display: "flex",
+            flexDirection: "column",
+            gap: "2px",
           }}
         >
-          Street University
+          <span
+            style={{
+              fontSize: "1.1rem",
+              fontWeight: 800,
+              color: "#0f172a",
+              lineHeight: 1.1,
+            }}
+          >
+            Street University
+          </span>
+          <span
+            style={{
+              fontSize: "0.82rem",
+              color: "#475569",
+              lineHeight: 1.1,
+            }}
+          >
+            AI-Powered Soft Skills
+          </span>
         </div>
 
-        <div
+        <nav
           style={{
-            display: "grid",
-            gridTemplateColumns: isMobile
-              ? `repeat(${items.length}, 1fr)`
-              : `repeat(${items.length}, auto)`,
+            display: "flex",
+            alignItems: "center",
             gap: "10px",
-            width: isMobile ? "100%" : "auto",
+            flexWrap: "wrap",
           }}
         >
-          {items.map((item) => (
+          {links.map((link) => (
             <NavItem
-              key={item.label}
-              label={item.label}
-              active={item.active}
-              onClick={item.onClick}
-              danger={item.danger}
+              key={link.path}
+              label={link.label}
+              active={pathname === link.path}
+              onClick={() => router.push(link.path)}
             />
           ))}
-        </div>
+
+          {isAuthenticated && (
+            <button
+              onClick={handleLogout}
+              style={{
+                padding: "10px 14px",
+                borderRadius: "14px",
+                border: "1px solid #fecaca",
+                background: "#fff1f2",
+                color: "#b91c1c",
+                cursor: "pointer",
+                fontWeight: 700,
+                transition: "all 0.2s ease",
+                whiteSpace: "nowrap",
+              }}
+            >
+              Déconnexion
+            </button>
+          )}
+        </nav>
       </div>
-    </nav>
+    </header>
   );
 }

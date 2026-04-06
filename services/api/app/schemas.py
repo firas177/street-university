@@ -74,6 +74,29 @@ class SessionOut(BaseModel):
         from_attributes = True
 
 
+class SessionListItemOut(BaseModel):
+    id: str
+    user_id: str
+    scenario_id: str
+    status: str
+    created_at: datetime
+    scenario: Optional[ScenarioMiniOut] = None
+
+    class Config:
+        from_attributes = True
+
+
+class SessionStatusUpdateOut(BaseModel):
+    id: str
+    user_id: str
+    scenario_id: str
+    status: str
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
 class MessageIn(BaseModel):
     content: str
 

@@ -1,170 +1,178 @@
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
-async function parseJsonSafe(res) {
-  const text = await res.text();
+async function parseJsonSafe(response) {
+  const text = await response.text();
+
   try {
-    return text ? JSON.parse(text) : {};
+    return text ? JSON.parse(text) : null;
   } catch {
-    return { raw: text };
+    return text;
   }
 }
 
-function formatError(data) {
-  if (!data) return "Erreur inconnue";
-  if (typeof data.detail === "string") return data.detail;
-  if (Array.isArray(data.detail)) return JSON.stringify(data.detail);
-  return JSON.stringify(data);
-}
-
-export async function loginUser({ email, password }) {
-  const res = await fetch(`${API_URL}/auth/login`, {
+export async function loginUser(payload) {
+  const response = await fetch(`${API_BASE_URL}/auth/login`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      Accept: "application/json",
     },
-    body: JSON.stringify({ email, password }),
+    body: JSON.stringify(payload),
   });
 
-  const data = await parseJsonSafe(res);
+  const data = await parseJsonSafe(response);
 
-  if (!res.ok) {
-    throw new Error(`${res.status} ${formatError(data)}`);
+  if (!response.ok) {
+    throw new Error(data?.detail || "Erreur de connexion");
   }
 
   return data;
 }
 
-export async function registerUser({ full_name, email, password }) {
-  const res = await fetch(`${API_URL}/auth/register`, {
+export async function registerUser(payload) {
+  const response = await fetch(`${API_BASE_URL}/auth/register`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      Accept: "application/json",
     },
-    body: JSON.stringify({ full_name, email, password }),
+    body: JSON.stringify(payload),
   });
 
-  const data = await parseJsonSafe(res);
+  const data = await parseJsonSafe(response);
 
-  if (!res.ok) {
-    throw new Error(`${res.status} ${formatError(data)}`);
+  if (!response.ok) {
+    throw new Error(data?.detail || "Erreur d'inscription");
+  }
+
+  return data;
+}
+
+export async function getMe(token) {
+  const response = await fetch(`${API_BASE_URL}/me`, {
+    method: "GET",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+  });
+
+  const data = await parseJsonSafe(response);
+
+  if (!response.ok) {
+    throw new Error(data?.detail || "Impossible de récupérer le profil");
   }
 
   return data;
 }
 
 export async function getProfile(token) {
-  const res = await fetch(`${API_URL}/auth/me`, {
-    method: "GET",
-    headers: {
-      Authorization: `Bearer ${token}`,
-      Accept: "application/json",
-    },
-  });
-
-  const data = await parseJsonSafe(res);
-
-  if (!res.ok) {
-    throw new Error(data?.detail || "Erreur profil");
-  }
-
-  return data;
+  return getMe(token);
 }
 
 export async function getScenarios(token) {
-  const res = await fetch(`${API_URL}/scenarios`, {
+  const response = await fetch(`${API_BASE_URL}/scenarios`, {
     method: "GET",
     headers: {
+      "Content-Type": "application/json",
       Authorization: `Bearer ${token}`,
-      Accept: "application/json",
     },
   });
 
-  const data = await parseJsonSafe(res);
+  const data = await parseJsonSafe(response);
 
-  if (!res.ok) {
-    throw new Error(data?.detail || "Erreur lors du chargement des scénarios");
-  }
-
-  return data;
-}
-
-export async function getScenarioById(token, scenarioId) {
-  const res = await fetch(`${API_URL}/scenarios/${scenarioId}`, {
-    method: "GET",
-    headers: {
-      Authorization: `Bearer ${token}`,
-      Accept: "application/json",
-    },
-  });
-
-  const data = await parseJsonSafe(res);
-
-  if (!res.ok) {
-    throw new Error(data?.detail || "Erreur lors du chargement du scénario");
+  if (!response.ok) {
+    throw new Error(data?.detail || "Impossible de récupérer les scénarios");
   }
 
   return data;
 }
 
 export async function startSession(token, scenarioId) {
-  const res = await fetch(`${API_URL}/sessions/start`, {
+  const response = await fetch(`${API_BASE_URL}/sessions/start`, {
     method: "POST",
     headers: {
-      Authorization: `Bearer ${token}`,
       "Content-Type": "application/json",
-      Accept: "application/json",
+      Authorization: `Bearer ${token}`,
     },
-    body: JSON.stringify({
-      scenario_id: scenarioId,
-    }),
+    body: JSON.stringify({ scenario_id: scenarioId }),
   });
 
-  const data = await parseJsonSafe(res);
+  const data = await parseJsonSafe(response);
 
-  if (!res.ok) {
-    throw new Error(data?.detail || "Erreur lors du démarrage de la session");
+  if (!response.ok) {
+    throw new Error(data?.detail || "Impossible de démarrer la session");
+  }
+
+  return data;
+}
+
+export async function getSessions(token) {
+  const response = await fetch(`${API_BASE_URL}/sessions`, {
+    method: "GET",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+  });
+
+  const data = await parseJsonSafe(response);
+
+  if (!response.ok) {
+    throw new Error(data?.detail || "Impossible de récupérer les sessions");
   }
 
   return data;
 }
 
 export async function getSessionById(token, sessionId) {
-  const res = await fetch(`${API_URL}/sessions/${sessionId}`, {
+  const response = await fetch(`${API_BASE_URL}/sessions/${sessionId}`, {
     method: "GET",
     headers: {
+      "Content-Type": "application/json",
       Authorization: `Bearer ${token}`,
-      Accept: "application/json",
     },
   });
 
-  const data = await parseJsonSafe(res);
+  const data = await parseJsonSafe(response);
 
-  if (!res.ok) {
-    throw new Error(data?.detail || "Erreur lors du chargement de la session");
+  if (!response.ok) {
+    throw new Error(data?.detail || "Impossible de récupérer la session");
   }
 
   return data;
 }
 
 export async function sendSessionMessage(token, sessionId, content) {
-  const res = await fetch(`${API_URL}/sessions/${sessionId}/message`, {
+  const response = await fetch(`${API_BASE_URL}/sessions/${sessionId}/message`, {
     method: "POST",
     headers: {
-      Authorization: `Bearer ${token}`,
       "Content-Type": "application/json",
-      Accept: "application/json",
+      Authorization: `Bearer ${token}`,
     },
-    body: JSON.stringify({
-      content,
-    }),
+    body: JSON.stringify({ content }),
   });
 
-  const data = await parseJsonSafe(res);
+  const data = await parseJsonSafe(response);
 
-  if (!res.ok) {
-    throw new Error(data?.detail || "Erreur lors de l’envoi du message");
+  if (!response.ok) {
+    throw new Error(data?.detail || "Impossible d'envoyer le message");
+  }
+
+  return data;
+}
+
+export async function completeSession(token, sessionId) {
+  const response = await fetch(`${API_BASE_URL}/sessions/${sessionId}/complete`, {
+    method: "PATCH",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+  });
+
+  const data = await parseJsonSafe(response);
+
+  if (!response.ok) {
+    throw new Error(data?.detail || "Impossible de terminer la session");
   }
 
   return data;

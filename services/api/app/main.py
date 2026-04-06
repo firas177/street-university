@@ -170,6 +170,45 @@ def start_session(
     return session
 
 
+@app.get("/sessions", response_model=list[schemas.SessionListItemOut])
+def list_sessions(
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user),
+):
+    query = (
+        db.query(models.Session)
+        .options(joinedload(models.Session.scenario))
+        .order_by(models.Session.created_at.desc())
+    )
+
+    if current_user.role != "admin":
+        query = query.filter(models.Session.user_id == current_user.id)
+
+    sessions = query.all()
+    return sessions
+
+
+@app.patch("/sessions/{session_id}/complete", response_model=schemas.SessionStatusUpdateOut)
+def complete_session(
+    session_id: str,
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user),
+):
+    session = db.query(models.Session).filter(models.Session.id == session_id).first()
+
+    if not session:
+        raise HTTPException(status_code=404, detail="Session introuvable")
+
+    if session.user_id != current_user.id and current_user.role != "admin":
+        raise HTTPException(status_code=403, detail="Accès refusé")
+
+    session.status = "completed"
+    db.commit()
+    db.refresh(session)
+
+    return session
+
+
 @app.post("/sessions/{session_id}/message", response_model=schemas.MessageOut)
 def send_message(
     session_id: str,
@@ -183,6 +222,9 @@ def send_message(
 
     if session.user_id != current_user.id and current_user.role != "admin":
         raise HTTPException(status_code=403, detail="Accès refusé")
+
+    if session.status == "completed":
+        raise HTTPException(status_code=400, detail="Cette session est déjà terminée")
 
     scenario = db.query(models.Scenario).filter(models.Scenario.id == session.scenario_id).first()
     if not scenario:
