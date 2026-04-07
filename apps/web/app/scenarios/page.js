@@ -3,11 +3,25 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Navbar from "../components/Navbar";
+import Alert from "../components/ui/Alert";
+import Badge from "../components/ui/Badge";
 import Button from "../components/ui/Button";
 import Card from "../components/ui/Card";
-import Alert from "../components/ui/Alert";
-import PageHeader from "../components/ui/PageHeader";
+import SectionHeader from "../components/ui/SectionHeader";
 import { getScenarios, startSession } from "../lib/api";
+
+function getDifficultyLabel(value) {
+  if (value === 1) return "Facile";
+  if (value === 2) return "Moyen";
+  if (value === 3) return "Difficile";
+  return "Standard";
+}
+
+function getDifficultyVariant(value) {
+  if (value === 1) return "completed";
+  if (value === 2) return "info";
+  return "active";
+}
 
 export default function ScenariosPage() {
   const router = useRouter();
@@ -15,19 +29,7 @@ export default function ScenariosPage() {
   const [scenarios, setScenarios] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [startingId, setStartingId] = useState(null);
-  const [isMobile, setIsMobile] = useState(false);
-
-  useEffect(() => {
-    function handleResize() {
-      setIsMobile(window.innerWidth < 900);
-    }
-
-    handleResize();
-    window.addEventListener("resize", handleResize);
-
-    return () => window.removeEventListener("resize", handleResize);
-  }, []);
+  const [startingId, setStartingId] = useState("");
 
   useEffect(() => {
     async function loadScenarios() {
@@ -39,23 +41,14 @@ export default function ScenariosPage() {
           return;
         }
 
+        setLoading(true);
+        setError("");
+
         const data = await getScenarios(token);
         setScenarios(Array.isArray(data) ? data : []);
       } catch (err) {
-        const message =
-          err.message || "Impossible de charger les scénarios.";
-
-        if (
-          message.toLowerCase().includes("401") ||
-          message.toLowerCase().includes("403") ||
-          message.toLowerCase().includes("token")
-        ) {
-          localStorage.removeItem("token");
-          router.replace("/auth/login");
-          return;
-        }
-
-        setError(message);
+        console.error("Scenarios loading error:", err);
+        setError(err?.message || "Impossible de charger les scénarios.");
       } finally {
         setLoading(false);
       }
@@ -64,217 +57,209 @@ export default function ScenariosPage() {
     loadScenarios();
   }, [router]);
 
-  function handleLogout() {
-    localStorage.removeItem("token");
-    router.replace("/auth/login");
-  }
-
   async function handleStartScenario(scenarioId) {
+    const token = localStorage.getItem("token");
+
+    if (!token) {
+      router.replace("/auth/login");
+      return;
+    }
+
     try {
-      const token = localStorage.getItem("token");
-
-      if (!token) {
-        router.replace("/auth/login");
-        return;
-      }
-
       setStartingId(scenarioId);
       setError("");
 
       const session = await startSession(token, scenarioId);
 
       if (!session?.id) {
-        throw new Error("Session créée mais identifiant introuvable.");
+        throw new Error("Session non créée correctement.");
       }
 
       router.push(`/session/${session.id}`);
     } catch (err) {
-      const message =
-        err.message || "Impossible de démarrer la session.";
-
-      if (
-        message.toLowerCase().includes("401") ||
-        message.toLowerCase().includes("403") ||
-        message.toLowerCase().includes("token")
-      ) {
-        localStorage.removeItem("token");
-        router.replace("/auth/login");
-        return;
-      }
-
-      setError(message);
+      console.error("Start session error:", err);
+      setError(err?.message || "Impossible de démarrer cette simulation.");
     } finally {
-      setStartingId(null);
+      setStartingId("");
     }
   }
 
   if (loading) {
     return (
-      <div style={{ minHeight: "100vh", background: "#f8fafc" }}>
+      <>
         <Navbar />
         <main
           style={{
-            maxWidth: "1100px",
-            margin: "0 auto",
-            padding: isMobile ? "20px 14px" : "32px 20px",
+            minHeight: "100vh",
+            background:
+              "linear-gradient(180deg, #f8fbff 0%, #eef4ff 38%, #ffffff 100%)",
+            padding: "32px 20px 60px",
           }}
         >
-          Chargement des scénarios...
+          <div style={{ maxWidth: "1200px", margin: "0 auto" }}>
+            <Card style={{ padding: "28px", borderRadius: "28px" }}>
+              <h1
+                style={{
+                  margin: 0,
+                  color: "#0f172a",
+                  fontSize: "28px",
+                  fontWeight: "800",
+                }}
+              >
+                Chargement des scénarios...
+              </h1>
+            </Card>
+          </div>
         </main>
-      </div>
+      </>
     );
   }
 
   return (
-    <div style={{ minHeight: "100vh", background: "#f8fafc" }}>
+    <>
       <Navbar />
 
       <main
         style={{
-          maxWidth: "1100px",
-          margin: "0 auto",
-          padding: isMobile ? "20px 14px" : "32px 20px",
+          minHeight: "100vh",
+          background:
+            "linear-gradient(180deg, #f8fbff 0%, #eef4ff 38%, #ffffff 100%)",
+          padding: "32px 20px 60px",
         }}
       >
-        <PageHeader
-          dark
-          badge="Scénarios"
-          title="Choisis une simulation"
-          description="Sélectionne un scénario pour démarrer une vraie session connectée au backend."
-        />
+        <div
+          style={{
+            maxWidth: "1200px",
+            margin: "0 auto",
+            display: "flex",
+            flexDirection: "column",
+            gap: "24px",
+          }}
+        >
+          {error && (
+            <Alert
+              type="error"
+              message={error}
+              style={{ borderRadius: "20px" }}
+            />
+          )}
 
-        {error && (
-          <Alert type="warning" style={{ marginBottom: "18px" }}>
-            {error}
-          </Alert>
-        )}
+          <section>
+            <SectionHeader
+              eyebrow="Scénarios"
+              title="Choisis une simulation"
+              description="Sélectionne un scénario pour commencer."
+            />
 
-        {!scenarios.length ? (
-          <Card
-            style={{
-              borderRadius: "22px",
-              padding: isMobile ? "18px" : "24px",
-            }}
-          >
-            <h2
-              style={{
-                marginTop: 0,
-                color: "#0f172a",
-                fontSize: isMobile ? "20px" : "24px",
-              }}
-            >
-              Aucun scénario trouvé
-            </h2>
-
-            <p style={{ color: "#475569", lineHeight: 1.6 }}>
-              Aucun scénario n’est disponible pour le moment. Vérifie que des
-              scénarios existent bien dans la base de données.
-            </p>
-
-            <div
-              style={{
-                display: "flex",
-                gap: "12px",
-                flexDirection: isMobile ? "column" : "row",
-                marginTop: "18px",
-              }}
-            >
-              <Button onClick={() => window.location.reload()} fullWidth={isMobile}>
-                Réessayer
-              </Button>
-
-              <Button variant="danger" onClick={handleLogout} fullWidth={isMobile}>
-                Déconnexion
-              </Button>
-            </div>
-          </Card>
-        ) : (
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: isMobile ? "1fr" : "repeat(2, 1fr)",
-              gap: "18px",
-            }}
-          >
-            {scenarios.map((scenario) => (
+            {scenarios.length === 0 ? (
               <Card
-                key={scenario.id}
                 style={{
-                  borderRadius: "22px",
-                  padding: isMobile ? "18px" : "22px",
-                  display: "flex",
-                  flexDirection: "column",
-                  justifyContent: "space-between",
-                  minHeight: "260px",
+                  padding: "24px",
+                  borderRadius: "28px",
                 }}
               >
-                <div>
-                  <div
-                    style={{
-                      display: "inline-flex",
-                      alignItems: "center",
-                      padding: "6px 12px",
-                      borderRadius: "999px",
-                      background: "#e0f2fe",
-                      color: "#0c4a6e",
-                      fontSize: "12px",
-                      fontWeight: "700",
-                      marginBottom: "14px",
-                    }}
-                  >
-                    {scenario.category || "Simulation"}
-                  </div>
-
-                  <h2
-                    style={{
-                      margin: "0 0 10px",
-                      color: "#0f172a",
-                      fontSize: isMobile ? "22px" : "24px",
-                      lineHeight: 1.2,
-                    }}
-                  >
-                    {scenario.title}
-                  </h2>
-
-                  <p
-                    style={{
-                      margin: 0,
-                      color: "#475569",
-                      lineHeight: 1.7,
-                      fontSize: isMobile ? "14px" : "15px",
-                    }}
-                  >
-                    {scenario.description || "Aucune description disponible."}
-                  </p>
-                </div>
-
-                <div style={{ marginTop: "20px" }}>
-                  <div
-                    style={{
-                      marginBottom: "14px",
-                      color: "#64748b",
-                      fontSize: "14px",
-                    }}
-                  >
-                    Difficulté : <strong>{scenario.difficulty ?? 1}</strong>
-                  </div>
-
-                  <Button
-                    onClick={() => handleStartScenario(scenario.id)}
-                    disabled={startingId === scenario.id}
-                    fullWidth
-                    variant="blue"
-                  >
-                    {startingId === scenario.id
-                      ? "Démarrage..."
-                      : "Commencer la session"}
-                  </Button>
-                </div>
+                <Alert
+                  type="info"
+                  message="Aucun scénario trouvé pour le moment."
+                />
               </Card>
-            ))}
-          </div>
-        )}
+            ) : (
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "repeat(auto-fit, minmax(290px, 1fr))",
+                  gap: "18px",
+                }}
+              >
+                {scenarios.map((scenario) => (
+                  <Card
+                    key={scenario.id}
+                    hoverable
+                    style={{
+                      padding: "0",
+                      borderRadius: "28px",
+                      overflow: "hidden",
+                      minHeight: "300px",
+                      display: "flex",
+                      flexDirection: "column",
+                      border: "1px solid #e2e8f0",
+                      boxShadow: "0 16px 35px rgba(15,23,42,0.06)",
+                    }}
+                  >
+                    <div
+                      style={{
+                        padding: "18px 20px",
+                        background:
+                          "linear-gradient(135deg, #eff6ff, #f8fbff)",
+                        borderBottom: "1px solid #dbeafe",
+                        display: "flex",
+                        justifyContent: "space-between",
+                        alignItems: "center",
+                        gap: "10px",
+                        flexWrap: "wrap",
+                      }}
+                    >
+                      <Badge variant="info">
+                        {scenario.category || "Général"}
+                      </Badge>
+
+                      <Badge variant={getDifficultyVariant(scenario.difficulty)}>
+                        {getDifficultyLabel(scenario.difficulty)}
+                      </Badge>
+                    </div>
+
+                    <div
+                      style={{
+                        padding: "22px",
+                        display: "flex",
+                        flexDirection: "column",
+                        justifyContent: "space-between",
+                        gap: "18px",
+                        flex: 1,
+                      }}
+                    >
+                      <div>
+                        <h2
+                          style={{
+                            margin: 0,
+                            color: "#0f172a",
+                            fontSize: "22px",
+                            fontWeight: "800",
+                            lineHeight: 1.2,
+                          }}
+                        >
+                          {scenario.title || "Scénario sans titre"}
+                        </h2>
+
+                        <p
+                          style={{
+                            margin: "12px 0 0",
+                            color: "#475569",
+                            fontSize: "14px",
+                            lineHeight: 1.75,
+                          }}
+                        >
+                          {scenario.description ||
+                            "Aucune description disponible pour ce scénario."}
+                        </p>
+                      </div>
+
+                      <Button
+                        onClick={() => handleStartScenario(scenario.id)}
+                        disabled={startingId === scenario.id}
+                      >
+                        {startingId === scenario.id
+                          ? "Démarrage..."
+                          : "Démarrer la simulation"}
+                      </Button>
+                    </div>
+                  </Card>
+                ))}
+              </div>
+            )}
+          </section>
+        </div>
       </main>
-    </div>
+    </>
   );
 }

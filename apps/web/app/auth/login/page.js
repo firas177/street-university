@@ -20,7 +20,7 @@ export default function LoginPage() {
   useEffect(() => {
     const token = localStorage.getItem("token");
     if (token) {
-      router.replace("/scenarios");
+      router.replace("/dashboard");
       return;
     }
     setMounted(true);
@@ -48,7 +48,7 @@ export default function LoginPage() {
       }
 
       localStorage.setItem("token", data.access_token);
-      router.replace("/scenarios");
+      router.replace("/dashboard");
     } catch (err) {
       setError(err.message || "Connexion impossible.");
     } finally {
@@ -94,7 +94,7 @@ export default function LoginPage() {
               marginBottom: "20px",
             }}
           >
-            Connecte-toi pour accéder à tes scénarios et démarrer une session.
+            Connecte-toi pour accéder à ton dashboard et démarrer une session.
           </p>
 
           {error && (

@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
-
 function NavItem({ label, active, onClick }) {
   const [hovered, setHovered] = useState(false);
 
@@ -92,7 +91,7 @@ export default function Navbar() {
         }}
       >
         <div
-          onClick={() => router.push(isAuthenticated ? "/scenarios" : "/")}
+          onClick={() => router.push(isAuthenticated ? "/dashboard" : "/")}
           style={{
             cursor: "pointer",
             display: "flex",
