@@ -112,6 +112,27 @@ class MessageOut(BaseModel):
         from_attributes = True
 
 
+class SessionFeedbackOut(BaseModel):
+    id: str
+    session_id: str
+    user_id: str
+
+    overall_score: Optional[float] = None
+    communication_score: Optional[float] = None
+    confidence_score: Optional[float] = None
+    clarity_score: Optional[float] = None
+    relevance_score: Optional[float] = None
+    professionalism_score: Optional[float] = None
+
+    strengths: Optional[str] = None
+    weaknesses: Optional[str] = None
+    final_advice: Optional[str] = None
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
 class SessionDetailOut(BaseModel):
     id: str
     user_id: str
@@ -120,6 +141,21 @@ class SessionDetailOut(BaseModel):
     created_at: datetime
     scenario: Optional[ScenarioMiniOut] = None
     messages: List[MessageOut] = []
+    feedback: Optional[SessionFeedbackOut] = None
 
     class Config:
         from_attributes = True
+
+
+class DashboardPerformanceOut(BaseModel):
+    average_score: Optional[float] = None
+    best_score: Optional[float] = None
+    completed_rated_sessions: int = 0
+
+    communication_average: Optional[float] = None
+    confidence_average: Optional[float] = None
+    clarity_average: Optional[float] = None
+    relevance_average: Optional[float] = None
+    professionalism_average: Optional[float] = None
+
+    latest_feedback: Optional[SessionFeedbackOut] = None

@@ -9,12 +9,7 @@ import Button from "../components/ui/Button";
 import Card from "../components/ui/Card";
 import SectionHeader from "../components/ui/SectionHeader";
 import StatCard from "../components/ui/StatCard";
-import {
-  getDashboardPerformance,
-  getMe,
-  getScenarios,
-  getSessions,
-} from "../lib/api";
+import { getMe, getScenarios, getSessions } from "../lib/api";
 
 function formatDate(dateValue) {
   if (!dateValue) return "N/A";
@@ -27,16 +22,6 @@ function formatDate(dateValue) {
     month: "short",
     year: "numeric",
   });
-}
-
-function formatScore(value) {
-  if (value === null || value === undefined) return "N/A";
-  return `${Number(value).toFixed(1)} / 10`;
-}
-
-function formatMetric(value) {
-  if (value === null || value === undefined) return "N/A";
-  return Number(value).toFixed(1);
 }
 
 function getSessionTimestamp(session) {
@@ -117,7 +102,6 @@ export default function DashboardPage() {
   const [user, setUser] = useState(null);
   const [sessions, setSessions] = useState([]);
   const [scenarios, setScenarios] = useState([]);
-  const [performance, setPerformance] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -134,22 +118,20 @@ export default function DashboardPage() {
         setLoading(true);
         setError("");
 
-        const [meData, sessionsData, scenariosData, performanceData] =
-          await Promise.all([
-            getMe(token),
-            getSessions(token),
-            getScenarios(token),
-            getDashboardPerformance(token),
-          ]);
+        const [meData, sessionsData, scenariosData] = await Promise.all([
+          getMe(token),
+          getSessions(token),
+          getScenarios(token),
+        ]);
 
         setUser(meData || null);
         setSessions(Array.isArray(sessionsData) ? sessionsData : []);
         setScenarios(Array.isArray(scenariosData) ? scenariosData : []);
-        setPerformance(performanceData || null);
       } catch (err) {
         console.error("Dashboard loading error:", err);
         setError(
-          err?.message || "Impossible de charger les données du dashboard."
+          err?.message ||
+            "Impossible de charger les données du dashboard."
         );
       } finally {
         setLoading(false);
@@ -195,8 +177,6 @@ export default function DashboardPage() {
     };
   }, [sessions, scenarios]);
 
-  const latestFeedback = performance?.latest_feedback || null;
-
   if (loading) {
     return (
       <>
@@ -227,8 +207,7 @@ export default function DashboardPage() {
                   fontSize: "15px",
                 }}
               >
-                Nous récupérons vos statistiques, vos sessions, vos scénarios
-                et vos performances.
+                Nous récupérons vos statistiques, vos sessions et vos scénarios.
               </p>
             </Card>
           </div>
@@ -506,9 +485,9 @@ export default function DashboardPage() {
 
           <section>
             <SectionHeader
-              eyebrow="Performance réelle"
+              eyebrow="Rating futur"
               title="Aperçu de performance"
-              description="Ces statistiques sont maintenant calculées à partir des feedbacks générés après vos sessions terminées."
+              description="Zone préparée pour la future intégration du rating utilisateur et des feedbacks IA."
             />
 
             <Card
@@ -520,83 +499,45 @@ export default function DashboardPage() {
                 boxShadow: "0 18px 40px rgba(15,23,42,0.06)",
               }}
             >
-              {performance?.completed_rated_sessions > 0 ? (
-                <>
-                  <div className="performance-grid">
-                    <PerformanceMiniCard
-                      label="Score global moyen"
-                      value={formatScore(performance?.average_score)}
-                    />
-                    <PerformanceMiniCard
-                      label="Meilleur score"
-                      value={formatScore(performance?.best_score)}
-                    />
-                    <PerformanceMiniCard
-                      label="Communication"
-                      value={formatMetric(performance?.communication_average)}
-                    />
-                    <PerformanceMiniCard
-                      label="Confiance"
-                      value={formatMetric(performance?.confidence_average)}
-                    />
-                    <PerformanceMiniCard
-                      label="Clarté"
-                      value={formatMetric(performance?.clarity_average)}
-                    />
-                    <PerformanceMiniCard
-                      label="Pertinence"
-                      value={formatMetric(performance?.relevance_average)}
-                    />
-                    <PerformanceMiniCard
-                      label="Professionnalisme"
-                      value={formatMetric(
-                        performance?.professionalism_average
-                      )}
-                    />
-                    <PerformanceMiniCard
-                      label="Sessions évaluées"
-                      value={performance?.completed_rated_sessions ?? 0}
-                    />
-                  </div>
+              <div className="performance-grid">
+                <PerformanceMiniCard label="Score global" value="8.2 / 10" />
+                <PerformanceMiniCard label="Communication" value="8.0" />
+                <PerformanceMiniCard label="Confiance" value="7.0" />
+                <PerformanceMiniCard label="Clarté" value="9.0" />
+                <PerformanceMiniCard label="Professionnalisme" value="9.0" />
+              </div>
 
-                  <div className="advice-grid">
-                    <div className="advice-card advice-blue">
-                      <h4 className="advice-title advice-title-blue">
-                        Points forts
-                      </h4>
-                      <p className="advice-text">
-                        {latestFeedback?.strengths ||
-                          "Aucun point fort disponible pour le moment."}
-                      </p>
-                    </div>
+              <div className="advice-grid">
+                <div className="advice-card advice-blue">
+                  <h4 className="advice-title advice-title-blue">
+                    Points forts
+                  </h4>
+                  <p className="advice-text">
+                    Bonne clarté, réponses structurées et attitude
+                    professionnelle solide.
+                  </p>
+                </div>
 
-                    <div className="advice-card advice-orange">
-                      <h4 className="advice-title advice-title-orange">
-                        Axes d’amélioration
-                      </h4>
-                      <p className="advice-text">
-                        {latestFeedback?.weaknesses ||
-                          "Aucun axe d’amélioration disponible pour le moment."}
-                      </p>
-                    </div>
+                <div className="advice-card advice-orange">
+                  <h4 className="advice-title advice-title-orange">
+                    Axes d’amélioration
+                  </h4>
+                  <p className="advice-text">
+                    Renforcer la confiance, la fluidité et la force d’impact
+                    dans certaines réponses.
+                  </p>
+                </div>
 
-                    <div className="advice-card advice-green">
-                      <h4 className="advice-title advice-title-green">
-                        Conseil final
-                      </h4>
-                      <p className="advice-text">
-                        {latestFeedback?.final_advice ||
-                          "Aucun conseil final disponible pour le moment."}
-                      </p>
-                    </div>
-                  </div>
-                </>
-              ) : (
-                <Alert
-                  type="info"
-                  message="Aucune performance réelle n’est encore disponible. Termine au moins une session pour générer un feedback IA et voir tes vraies statistiques."
-                />
-              )}
+                <div className="advice-card advice-green">
+                  <h4 className="advice-title advice-title-green">
+                    Conseil final
+                  </h4>
+                  <p className="advice-text">
+                    Continuez des simulations régulières pour transformer vos
+                    bonnes bases en progression constante.
+                  </p>
+                </div>
+              </div>
             </Card>
           </section>
         </div>

@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session, joinedload
 from .db import engine, Base, get_db
 from .dependencies import get_current_user, require_roles
 from .jwt_utils import create_access_token
-from .ai_service import generate_ai_reply
+from .ai_service import generate_ai_reply, generate_session_feedback
 from .schemas import UserLogin
 from . import models, schemas, auth
 
@@ -206,6 +206,43 @@ def complete_session(
     db.commit()
     db.refresh(session)
 
+    existing_feedback = (
+        db.query(models.SessionFeedback)
+        .filter(models.SessionFeedback.session_id == session.id)
+        .first()
+    )
+
+    if not existing_feedback:
+        session_messages = (
+            db.query(models.Message)
+            .filter(models.Message.session_id == session.id)
+            .order_by(models.Message.created_at.asc())
+            .all()
+        )
+
+        messages_payload = [
+            {"role": msg.role, "content": msg.content}
+            for msg in session_messages
+        ]
+
+        feedback_data = generate_session_feedback(messages_payload)
+
+        feedback = models.SessionFeedback(
+            session_id=session.id,
+            user_id=session.user_id,
+            overall_score=feedback_data.get("overall_score"),
+            communication_score=feedback_data.get("communication_score"),
+            confidence_score=feedback_data.get("confidence_score"),
+            clarity_score=feedback_data.get("clarity_score"),
+            relevance_score=feedback_data.get("relevance_score"),
+            professionalism_score=feedback_data.get("professionalism_score"),
+            strengths=feedback_data.get("strengths"),
+            weaknesses=feedback_data.get("weaknesses"),
+            final_advice=feedback_data.get("final_advice"),
+        )
+        db.add(feedback)
+        db.commit()
+
     return session
 
 
@@ -279,6 +316,7 @@ def get_session_detail(
         .options(
             joinedload(models.Session.scenario),
             joinedload(models.Session.messages),
+            joinedload(models.Session.feedback),
         )
         .filter(models.Session.id == session_id)
         .first()
@@ -292,3 +330,82 @@ def get_session_detail(
 
     session.messages = sorted(session.messages, key=lambda msg: msg.created_at)
     return session
+
+
+@app.get("/sessions/{session_id}/feedback", response_model=schemas.SessionFeedbackOut)
+def get_session_feedback(
+    session_id: str,
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user),
+):
+    session = db.query(models.Session).filter(models.Session.id == session_id).first()
+
+    if not session:
+        raise HTTPException(status_code=404, detail="Session introuvable")
+
+    if session.user_id != current_user.id and current_user.role != "admin":
+        raise HTTPException(status_code=403, detail="Accès refusé")
+
+    feedback = (
+        db.query(models.SessionFeedback)
+        .filter(models.SessionFeedback.session_id == session_id)
+        .first()
+    )
+
+    if not feedback:
+        raise HTTPException(status_code=404, detail="Feedback introuvable")
+
+    return feedback
+
+
+@app.get("/dashboard/performance", response_model=schemas.DashboardPerformanceOut)
+def get_dashboard_performance(
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user),
+):
+    feedbacks = (
+        db.query(models.SessionFeedback)
+        .filter(models.SessionFeedback.user_id == current_user.id)
+        .order_by(models.SessionFeedback.created_at.desc())
+        .all()
+    )
+
+    if not feedbacks:
+        return {
+            "average_score": None,
+            "best_score": None,
+            "completed_rated_sessions": 0,
+            "communication_average": None,
+            "confidence_average": None,
+            "clarity_average": None,
+            "relevance_average": None,
+            "professionalism_average": None,
+            "latest_feedback": None,
+        }
+
+    def avg(values):
+        valid = [v for v in values if v is not None]
+        if not valid:
+            return None
+        return round(sum(valid) / len(valid), 1)
+
+    overall_values = [f.overall_score for f in feedbacks]
+    communication_values = [f.communication_score for f in feedbacks]
+    confidence_values = [f.confidence_score for f in feedbacks]
+    clarity_values = [f.clarity_score for f in feedbacks]
+    relevance_values = [f.relevance_score for f in feedbacks]
+    professionalism_values = [f.professionalism_score for f in feedbacks]
+
+    valid_overall = [v for v in overall_values if v is not None]
+
+    return {
+        "average_score": avg(overall_values),
+        "best_score": round(max(valid_overall), 1) if valid_overall else None,
+        "completed_rated_sessions": len(feedbacks),
+        "communication_average": avg(communication_values),
+        "confidence_average": avg(confidence_values),
+        "clarity_average": avg(clarity_values),
+        "relevance_average": avg(relevance_values),
+        "professionalism_average": avg(professionalism_values),
+        "latest_feedback": feedbacks[0],
+    }

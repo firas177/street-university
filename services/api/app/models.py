@@ -1,5 +1,5 @@
 import uuid
-from sqlalchemy import Column, String, DateTime, func, Integer, ForeignKey, Text
+from sqlalchemy import Column, String, DateTime, func, Integer, ForeignKey, Text, Float
 from sqlalchemy.orm import relationship
 
 from .db import Base
@@ -44,6 +44,12 @@ class Session(Base):
     user = relationship("User")
     scenario = relationship("Scenario", back_populates="sessions")
     messages = relationship("Message", back_populates="session", cascade="all, delete-orphan")
+    feedback = relationship(
+        "SessionFeedback",
+        back_populates="session",
+        uselist=False,
+        cascade="all, delete-orphan",
+    )
 
 
 class Message(Base):
@@ -56,3 +62,27 @@ class Message(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 
     session = relationship("Session", back_populates="messages")
+
+
+class SessionFeedback(Base):
+    __tablename__ = "session_feedbacks"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    session_id = Column(String, ForeignKey("sessions.id"), nullable=False, unique=True, index=True)
+    user_id = Column(String, ForeignKey("users.id"), nullable=False, index=True)
+
+    overall_score = Column(Float, nullable=True)
+    communication_score = Column(Float, nullable=True)
+    confidence_score = Column(Float, nullable=True)
+    clarity_score = Column(Float, nullable=True)
+    relevance_score = Column(Float, nullable=True)
+    professionalism_score = Column(Float, nullable=True)
+
+    strengths = Column(Text, nullable=True)
+    weaknesses = Column(Text, nullable=True)
+    final_advice = Column(Text, nullable=True)
+
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+    session = relationship("Session", back_populates="feedback")
+    user = relationship("User")

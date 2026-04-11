@@ -10,58 +10,61 @@ async function parseJsonSafe(response) {
   }
 }
 
-export async function loginUser(payload) {
-  const response = await fetch(`${API_BASE_URL}/auth/login`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(payload),
-  });
-
+async function fetchJson(path, options = {}, defaultError = "Erreur API") {
+  const response = await fetch(`${API_BASE_URL}${path}`, options);
   const data = await parseJsonSafe(response);
 
   if (!response.ok) {
-    throw new Error(data?.detail || "Erreur de connexion");
+    throw new Error(data?.detail || defaultError);
   }
 
   return data;
+}
+
+function authHeaders(token) {
+  return {
+    "Content-Type": "application/json",
+    Authorization: `Bearer ${token}`,
+  };
+}
+
+export async function loginUser(payload) {
+  return fetchJson(
+    "/auth/login",
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload),
+    },
+    "Erreur de connexion"
+  );
 }
 
 export async function registerUser(payload) {
-  const response = await fetch(`${API_BASE_URL}/auth/register`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
+  return fetchJson(
+    "/auth/register",
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload),
     },
-    body: JSON.stringify(payload),
-  });
-
-  const data = await parseJsonSafe(response);
-
-  if (!response.ok) {
-    throw new Error(data?.detail || "Erreur d'inscription");
-  }
-
-  return data;
+    "Erreur d'inscription"
+  );
 }
 
 export async function getMe(token) {
-  const response = await fetch(`${API_BASE_URL}/me`, {
-    method: "GET",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${token}`,
+  return fetchJson(
+    "/me",
+    {
+      method: "GET",
+      headers: authHeaders(token),
     },
-  });
-
-  const data = await parseJsonSafe(response);
-
-  if (!response.ok) {
-    throw new Error(data?.detail || "Impossible de récupérer le profil");
-  }
-
-  return data;
+    "Impossible de récupérer le profil"
+  );
 }
 
 export async function getProfile(token) {
@@ -69,111 +72,91 @@ export async function getProfile(token) {
 }
 
 export async function getScenarios(token) {
-  const response = await fetch(`${API_BASE_URL}/scenarios`, {
-    method: "GET",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${token}`,
+  return fetchJson(
+    "/scenarios",
+    {
+      method: "GET",
+      headers: authHeaders(token),
     },
-  });
-
-  const data = await parseJsonSafe(response);
-
-  if (!response.ok) {
-    throw new Error(data?.detail || "Impossible de récupérer les scénarios");
-  }
-
-  return data;
+    "Impossible de récupérer les scénarios"
+  );
 }
 
 export async function startSession(token, scenarioId) {
-  const response = await fetch(`${API_BASE_URL}/sessions/start`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${token}`,
+  return fetchJson(
+    "/sessions/start",
+    {
+      method: "POST",
+      headers: authHeaders(token),
+      body: JSON.stringify({ scenario_id: scenarioId }),
     },
-    body: JSON.stringify({ scenario_id: scenarioId }),
-  });
-
-  const data = await parseJsonSafe(response);
-
-  if (!response.ok) {
-    throw new Error(data?.detail || "Impossible de démarrer la session");
-  }
-
-  return data;
+    "Impossible de démarrer la session"
+  );
 }
 
 export async function getSessions(token) {
-  const response = await fetch(`${API_BASE_URL}/sessions`, {
-    method: "GET",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${token}`,
+  return fetchJson(
+    "/sessions",
+    {
+      method: "GET",
+      headers: authHeaders(token),
     },
-  });
-
-  const data = await parseJsonSafe(response);
-
-  if (!response.ok) {
-    throw new Error(data?.detail || "Impossible de récupérer les sessions");
-  }
-
-  return data;
+    "Impossible de récupérer les sessions"
+  );
 }
 
 export async function getSessionById(token, sessionId) {
-  const response = await fetch(`${API_BASE_URL}/sessions/${sessionId}`, {
-    method: "GET",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${token}`,
+  return fetchJson(
+    `/sessions/${sessionId}`,
+    {
+      method: "GET",
+      headers: authHeaders(token),
     },
-  });
-
-  const data = await parseJsonSafe(response);
-
-  if (!response.ok) {
-    throw new Error(data?.detail || "Impossible de récupérer la session");
-  }
-
-  return data;
+    "Impossible de récupérer la session"
+  );
 }
 
 export async function sendSessionMessage(token, sessionId, content) {
-  const response = await fetch(`${API_BASE_URL}/sessions/${sessionId}/message`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${token}`,
+  return fetchJson(
+    `/sessions/${sessionId}/message`,
+    {
+      method: "POST",
+      headers: authHeaders(token),
+      body: JSON.stringify({ content }),
     },
-    body: JSON.stringify({ content }),
-  });
-
-  const data = await parseJsonSafe(response);
-
-  if (!response.ok) {
-    throw new Error(data?.detail || "Impossible d'envoyer le message");
-  }
-
-  return data;
+    "Impossible d'envoyer le message"
+  );
 }
 
 export async function completeSession(token, sessionId) {
-  const response = await fetch(`${API_BASE_URL}/sessions/${sessionId}/complete`, {
-    method: "PATCH",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${token}`,
+  return fetchJson(
+    `/sessions/${sessionId}/complete`,
+    {
+      method: "PATCH",
+      headers: authHeaders(token),
     },
-  });
+    "Impossible de terminer la session"
+  );
+}
 
-  const data = await parseJsonSafe(response);
+export async function getSessionFeedback(token, sessionId) {
+  return fetchJson(
+    `/sessions/${sessionId}/feedback`,
+    {
+      method: "GET",
+      headers: authHeaders(token),
+    },
+    "Impossible de récupérer le feedback de la session"
+  );
+}
 
-  if (!response.ok) {
-    throw new Error(data?.detail || "Impossible de terminer la session");
-  }
-
-  return data;
+export async function getDashboardPerformance(token) {
+  return fetchJson(
+    "/dashboard/performance",
+    {
+      method: "GET",
+      headers: authHeaders(token),
+    },
+    "Impossible de récupérer les statistiques de performance"
+  );
 }
