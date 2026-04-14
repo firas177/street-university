@@ -4,8 +4,6 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import Navbar from "../components/Navbar";
 import Alert from "../components/ui/Alert";
-import Badge from "../components/ui/Badge";
-import Button from "../components/ui/Button";
 import Card from "../components/ui/Card";
 import SectionHeader from "../components/ui/SectionHeader";
 import StatCard from "../components/ui/StatCard";
@@ -16,99 +14,61 @@ import {
   getSessions,
 } from "../lib/api";
 
-function formatDate(dateValue) {
-  if (!dateValue) return "N/A";
+function formatDate(value) {
+  if (!value) return "Date inconnue";
 
-  const date = new Date(dateValue);
-  if (Number.isNaN(date.getTime())) return "N/A";
-
-  return date.toLocaleDateString("fr-FR", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-  });
+  try {
+    return new Date(value).toLocaleDateString("fr-FR", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+    });
+  } catch {
+    return "Date inconnue";
+  }
 }
 
 function formatScore(value) {
-  if (value === null || value === undefined) return "N/A";
-  return `${Number(value).toFixed(1)} / 10`;
+  if (value === null || value === undefined || value === "") return "N/A";
+  const num = Number(value);
+  if (Number.isNaN(num)) return "N/A";
+  return `${num.toFixed(1)} / 10`;
 }
 
 function formatMetric(value) {
-  if (value === null || value === undefined) return "N/A";
-  return Number(value).toFixed(1);
+  if (value === null || value === undefined || value === "") return "N/A";
+  const num = Number(value);
+  if (Number.isNaN(num)) return "N/A";
+  return num.toFixed(1);
 }
 
-function getSessionTimestamp(session) {
-  return new Date(
-    session?.updated_at || session?.created_at || session?.started_at || 0
-  ).getTime();
+function pickValue(...values) {
+  for (const value of values) {
+    if (value !== null && value !== undefined && value !== "") {
+      return value;
+    }
+  }
+  return null;
 }
 
-function getRecentSessions(sessions) {
-  return [...sessions]
-    .sort((a, b) => getSessionTimestamp(b) - getSessionTimestamp(a))
-    .slice(0, 5);
-}
+function sanitizeFeedbackText(value, fallback) {
+  if (!value || typeof value !== "string") return fallback;
 
-function getScenarioTitle(session) {
-  return (
-    session?.scenario?.title ||
-    session?.scenario_title ||
-    session?.title ||
-    "Simulation sans titre"
-  );
-}
+  const lower = value.toLowerCase();
 
-function getScenarioCategory(session) {
-  return session?.scenario?.category || session?.category || "Général";
-}
+  if (
+    lower.includes("unknown request url") ||
+    lower.includes("invalid_request_error") ||
+    lower.includes("erreur ia") ||
+    lower.includes('"error"') ||
+    lower.includes("404") ||
+    lower.includes("/openai/v1") ||
+    lower.includes("groq")
+  ) {
+    return fallback;
+  }
 
-function getStatusVariant(status) {
-  if (status === "completed") return "completed";
-  return "active";
-}
-
-function getStatusLabel(status) {
-  if (status === "completed") return "Terminée";
-  if (status === "active") return "Active";
-  return status || "Inconnue";
-}
-
-function PerformanceMiniCard({ label, value }) {
-  return (
-    <div
-      style={{
-        padding: "16px",
-        borderRadius: "20px",
-        background: "#f8fafc",
-        border: "1px solid #e2e8f0",
-        boxShadow: "0 8px 24px rgba(15,23,42,0.04)",
-      }}
-    >
-      <p
-        style={{
-          margin: 0,
-          color: "#64748b",
-          fontSize: "13px",
-          fontWeight: "700",
-        }}
-      >
-        {label}
-      </p>
-      <h3
-        style={{
-          margin: "8px 0 0",
-          color: "#0f172a",
-          fontSize: "24px",
-          fontWeight: "800",
-          lineHeight: 1.1,
-        }}
-      >
-        {value}
-      </h3>
-    </div>
-  );
+  return value;
 }
 
 export default function DashboardPage() {
@@ -122,15 +82,15 @@ export default function DashboardPage() {
   const [error, setError] = useState("");
 
   useEffect(() => {
-    const token = localStorage.getItem("token");
-
-    if (!token) {
-      router.replace("/auth/login");
-      return;
-    }
-
     async function loadDashboard() {
       try {
+        const token = localStorage.getItem("token");
+
+        if (!token) {
+          router.replace("/auth/login");
+          return;
+        }
+
         setLoading(true);
         setError("");
 
@@ -139,7 +99,7 @@ export default function DashboardPage() {
             getMe(token),
             getSessions(token),
             getScenarios(token),
-            getDashboardPerformance(token),
+            getDashboardPerformance(token).catch(() => null),
           ]);
 
         setUser(meData || null);
@@ -147,10 +107,7 @@ export default function DashboardPage() {
         setScenarios(Array.isArray(scenariosData) ? scenariosData : []);
         setPerformance(performanceData || null);
       } catch (err) {
-        console.error("Dashboard loading error:", err);
-        setError(
-          err?.message || "Impossible de charger les données du dashboard."
-        );
+        setError(err?.message || "Impossible de charger le dashboard.");
       } finally {
         setLoading(false);
       }
@@ -167,35 +124,117 @@ export default function DashboardPage() {
     const activeSessions = sessions.filter(
       (session) => session.status === "active"
     ).length;
-    const totalScenarios = scenarios.length;
+    const availableScenarios = scenarios.length;
     const completionRate =
       totalSessions > 0
         ? Math.round((completedSessions / totalSessions) * 100)
         : 0;
 
-    const recentSessions = getRecentSessions(sessions);
-
-    const lastSessionDate =
-      recentSessions.length > 0
-        ? formatDate(
-            recentSessions[0]?.updated_at ||
-              recentSessions[0]?.created_at ||
-              recentSessions[0]?.started_at
-          )
-        : "N/A";
-
     return {
       totalSessions,
       completedSessions,
       activeSessions,
-      totalScenarios,
+      availableScenarios,
       completionRate,
-      recentSessions,
-      lastSessionDate,
     };
   }, [sessions, scenarios]);
 
-  const latestFeedback = performance?.latest_feedback || null;
+  const recentSessions = useMemo(() => {
+    return [...sessions]
+      .sort(
+        (a, b) =>
+          new Date(b.created_at || 0).getTime() -
+          new Date(a.created_at || 0).getTime()
+      )
+      .slice(0, 5);
+  }, [sessions]);
+
+  const latestDate =
+    recentSessions.length > 0 ? recentSessions[0]?.created_at : null;
+
+  const completedRatedSessions =
+    pickValue(
+      performance?.completed_rated_sessions,
+      performance?.rated_sessions,
+      performance?.sessions_evaluees,
+      performance?.evaluated_sessions
+    ) ?? 0;
+
+  const averageScore = pickValue(
+    performance?.average_score,
+    performance?.averageScore,
+    performance?.avg_score,
+    performance?.score_average,
+    performance?.moyenne_score
+  );
+
+  const bestScore = pickValue(
+    performance?.best_score,
+    performance?.bestScore,
+    performance?.max_score,
+    performance?.top_score,
+    performance?.meilleur_score
+  );
+
+  const communicationAverage = pickValue(
+    performance?.communication_average,
+    performance?.communication,
+    performance?.avg_communication,
+    performance?.communication_score
+  );
+
+  const confidenceAverage = pickValue(
+    performance?.confidence_average,
+    performance?.confidence,
+    performance?.avg_confidence,
+    performance?.confidence_score
+  );
+
+  const clarityAverage = pickValue(
+    performance?.clarity_average,
+    performance?.clarity,
+    performance?.avg_clarity,
+    performance?.clarity_score
+  );
+
+  const relevanceAverage = pickValue(
+    performance?.relevance_average,
+    performance?.relevance,
+    performance?.avg_relevance,
+    performance?.relevance_score
+  );
+
+  const professionalismAverage = pickValue(
+    performance?.professionalism_average,
+    performance?.professionalism,
+    performance?.avg_professionalism,
+    performance?.professionalism_score
+  );
+
+  const rawFeedback =
+    performance?.latest_feedback ||
+    performance?.latestFeedback ||
+    performance?.feedback ||
+    null;
+
+  const latestFeedback = rawFeedback
+    ? {
+        strengths: sanitizeFeedbackText(
+          rawFeedback?.strengths,
+          "Feedback indisponible pour le moment."
+        ),
+        weaknesses: sanitizeFeedbackText(
+          rawFeedback?.weaknesses,
+          "Feedback temporairement indisponible."
+        ),
+        final_advice: sanitizeFeedbackText(
+          rawFeedback?.final_advice,
+          "Réessayez plus tard ou vérifiez la configuration IA."
+        ),
+      }
+    : null;
+
+  const hasPerformance = completedRatedSessions > 0;
 
   if (loading) {
     return (
@@ -203,36 +242,60 @@ export default function DashboardPage() {
         <Navbar />
         <main className="page-shell">
           <div className="page-container">
-            <Card
-              style={{
-                padding: "24px",
-                borderRadius: "24px",
-              }}
-            >
-              <h1
-                style={{
-                  margin: 0,
-                  color: "#0f172a",
-                  fontSize: "28px",
-                  fontWeight: "800",
-                }}
-              >
-                Chargement du dashboard...
-              </h1>
-              <p
-                style={{
-                  margin: "12px 0 0",
-                  color: "#64748b",
-                  lineHeight: 1.7,
-                  fontSize: "15px",
-                }}
-              >
-                Nous récupérons vos statistiques, vos sessions, vos scénarios
-                et vos performances.
+            <Card style={{ padding: "28px", borderRadius: "28px" }}>
+              <p className="eyebrow">Dashboard étudiant</p>
+              <h1 className="hero-title">Chargement du dashboard...</h1>
+              <p className="hero-text">
+                Nous préparons vos statistiques, scénarios et sessions récentes.
               </p>
             </Card>
           </div>
         </main>
+
+        <style jsx>{`
+          .page-shell {
+            min-height: 100vh;
+            background: linear-gradient(
+              180deg,
+              #f8fbff 0%,
+              #eef4ff 45%,
+              #ffffff 100%
+            );
+            padding: 32px 20px 60px;
+          }
+
+          .page-container {
+            max-width: 1200px;
+            margin: 0 auto;
+          }
+
+          .eyebrow {
+            margin: 0;
+            color: #2563eb;
+            font-size: 13px;
+            font-weight: 800;
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+          }
+
+          .hero-title {
+            margin: 12px 0 10px;
+            color: #0f172a;
+            font-size: clamp(30px, 4vw, 46px);
+            line-height: 1.05;
+            font-weight: 900;
+            letter-spacing: -0.04em;
+          }
+
+          .hero-text {
+            margin: 0;
+            color: #64748b;
+            font-size: 16px;
+            line-height: 1.8;
+            font-weight: 500;
+            max-width: 700px;
+          }
+        `}</style>
       </>
     );
   }
@@ -245,82 +308,76 @@ export default function DashboardPage() {
         <div className="page-container">
           {error && (
             <Alert
-              type="error"
-              message={error}
-              style={{ borderRadius: "20px" }}
-            />
+              type="warning"
+              style={{ marginBottom: "18px", borderRadius: "18px" }}
+            >
+              {error}
+            </Alert>
           )}
 
           <Card
             style={{
-              padding: "30px",
+              padding: "32px",
               borderRadius: "30px",
               background:
-                "linear-gradient(135deg, #ffffff, #eff6ff 55%, #dbeafe)",
+                "linear-gradient(135deg, #ffffff, #eff6ff 50%, #dbeafe)",
               border: "1px solid #dbeafe",
               boxShadow: "0 24px 60px rgba(15, 23, 42, 0.08)",
-              color: "#0f172a",
-              overflow: "hidden",
-              position: "relative",
+              marginBottom: "24px",
             }}
           >
-            <div
-              style={{
-                position: "absolute",
-                top: "-30px",
-                right: "-30px",
-                width: "180px",
-                height: "180px",
-                borderRadius: "999px",
-                background: "rgba(37, 99, 235, 0.08)",
-                pointerEvents: "none",
-              }}
-            />
-
-            <div className="hero-content">
-              <div className="hero-text">
-                <p className="hero-eyebrow">Dashboard étudiant</p>
-
+            <div className="hero-row">
+              <div className="hero-main">
+                <p className="eyebrow">Dashboard étudiant</p>
                 <h1 className="hero-title">
-                  Bon retour{user?.full_name ? `, ${user.full_name}` : ""}.
+                  Bon retour, {user?.full_name || "utilisateur"}.
                 </h1>
-
-                <p className="hero-description">
+                <p className="hero-text">
                   Suivez votre progression, reprenez rapidement vos simulations
                   récentes et gardez une vision claire de votre évolution sur
                   Street University.
                 </p>
 
                 <div className="hero-badges">
-                  <Badge variant="info">
-                    {stats.totalSessions} session
-                    {stats.totalSessions > 1 ? "s" : ""}
-                  </Badge>
-                  <Badge variant="completed">
+                  <span className="badge badge-blue">
+                    {stats.totalSessions} sessions
+                  </span>
+                  <span className="badge badge-green">
                     {stats.completionRate}% de complétion
-                  </Badge>
-                  <Badge variant="active">
-                    Dernière activité : {stats.lastSessionDate}
-                  </Badge>
+                  </span>
+                  <span className="badge badge-amber">
+                    Dernière activité :{" "}
+                    {latestDate ? formatDate(latestDate) : "Aucune"}
+                  </span>
                 </div>
               </div>
 
               <div className="hero-actions">
-                <Button onClick={() => router.push("/scenarios")}>
+                <button
+                  onClick={() => router.push("/scenarios")}
+                  className="hero-button primary"
+                >
                   Démarrer une simulation
-                </Button>
+                </button>
 
-                <Button
-                  variant="secondary"
+                <button
                   onClick={() => router.push("/sessions")}
+                  className="hero-button secondary"
                 >
                   Voir mes sessions
-                </Button>
+                </button>
+
+                <button
+                  onClick={() => router.push("/dashboard/performance")}
+                  className="hero-button secondary"
+                >
+                  Voir mes performances
+                </button>
               </div>
             </div>
           </Card>
 
-          <section>
+          <section style={{ marginBottom: "24px" }}>
             <SectionHeader
               eyebrow="Vue d’ensemble"
               title="Vos statistiques principales"
@@ -334,270 +391,201 @@ export default function DashboardPage() {
                 helpText="Toutes les simulations lancées."
                 accent="blue"
               />
-
               <StatCard
                 label="Sessions terminées"
                 value={stats.completedSessions}
                 helpText="Simulations finalisées avec succès."
                 accent="green"
               />
-
               <StatCard
                 label="Sessions actives"
                 value={stats.activeSessions}
                 helpText="Simulations actuellement en cours."
                 accent="amber"
               />
-
               <StatCard
                 label="Scénarios disponibles"
-                value={stats.totalScenarios}
+                value={stats.availableScenarios}
                 helpText="Scénarios accessibles sur la plateforme."
                 accent="slate"
               />
-
               <StatCard
                 label="Taux de complétion"
                 value={`${stats.completionRate}%`}
                 helpText="Part de sessions terminées."
                 accent="blue"
               />
-
-              <StatCard
-                label="Dernière session"
-                value={stats.lastSessionDate}
-                helpText="Date de votre activité la plus récente."
-                accent="slate"
-              />
             </div>
           </section>
 
-          <div className="dashboard-two-columns">
-            <section style={{ minWidth: 0 }}>
-              <SectionHeader
-                eyebrow="Activité récente"
-                title="Sessions récentes"
-                description="Reprenez rapidement vos dernières simulations."
-              />
+          <section style={{ marginBottom: "24px" }}>
+            <SectionHeader
+              eyebrow="Performance réelle"
+              title="Vos performances intelligentes"
+              description="Aperçu rapide des scores calculés à partir de vos sessions évaluées."
+            />
 
-              <Card
-                style={{
-                  padding: "20px",
-                  borderRadius: "24px",
-                }}
-              >
-                {stats.recentSessions.length === 0 ? (
-                  <Alert
-                    type="info"
-                    message="Aucune session récente pour le moment. Lance ta première simulation depuis la page Scénarios."
-                  />
-                ) : (
-                  <div className="recent-list">
-                    {stats.recentSessions.map((session) => {
-                      const scenarioTitle = getScenarioTitle(session);
-                      const category = getScenarioCategory(session);
-                      const status = session?.status || "active";
-                      const sessionId = session?.id;
-
-                      return (
-                        <div key={sessionId} className="recent-item">
-                          <div className="recent-item-main">
-                            <h3 className="recent-item-title">{scenarioTitle}</h3>
-
-                            <p className="recent-item-meta">
-                              {category} •{" "}
-                              {formatDate(
-                                session?.updated_at ||
-                                  session?.created_at ||
-                                  session?.started_at
-                              )}
-                            </p>
-                          </div>
-
-                          <div className="recent-item-actions">
-                            <Badge variant={getStatusVariant(status)}>
-                              {getStatusLabel(status)}
-                            </Badge>
-
-                            {sessionId && (
-                              <Button
-                                variant="secondary"
-                                onClick={() =>
-                                  router.push(`/session/${sessionId}`)
-                                }
-                              >
-                                Reprendre
-                              </Button>
-                            )}
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
+            {!hasPerformance ? (
+              <Card style={{ padding: "24px", borderRadius: "24px" }}>
+                <p className="empty-text">
+                  Aucune performance réelle n’est encore disponible. Termine une
+                  session évaluée pour voir apparaître tes scores et ton
+                  feedback IA.
+                </p>
               </Card>
-            </section>
+            ) : (
+              <>
+                <div className="stats-grid" style={{ marginBottom: "18px" }}>
+                  <StatCard
+                    label="Score moyen"
+                    value={formatScore(averageScore)}
+                    helpText="Moyenne des sessions évaluées."
+                    accent="blue"
+                  />
+                  <StatCard
+                    label="Meilleur score"
+                    value={formatScore(bestScore)}
+                    helpText="Votre meilleure performance."
+                    accent="green"
+                  />
+                  <StatCard
+                    label="Sessions évaluées"
+                    value={completedRatedSessions}
+                    helpText="Sessions avec feedback IA."
+                    accent="slate"
+                  />
+                  <StatCard
+                    label="Communication"
+                    value={formatMetric(communicationAverage)}
+                    helpText="Expression et aisance."
+                    accent="blue"
+                  />
+                  <StatCard
+                    label="Confiance"
+                    value={formatMetric(confidenceAverage)}
+                    helpText="Niveau moyen d’assurance."
+                    accent="green"
+                  />
+                  <StatCard
+                    label="Clarté"
+                    value={formatMetric(clarityAverage)}
+                    helpText="Structure et clarté."
+                    accent="amber"
+                  />
+                  <StatCard
+                    label="Pertinence"
+                    value={formatMetric(relevanceAverage)}
+                    helpText="Qualité et pertinence des réponses."
+                    accent="blue"
+                  />
+                  <StatCard
+                    label="Professionnalisme"
+                    value={formatMetric(professionalismAverage)}
+                    helpText="Posture et ton professionnel."
+                    accent="green"
+                  />
+                </div>
 
-            <section style={{ minWidth: 0 }}>
-              <SectionHeader
-                eyebrow="Actions rapides"
-                title="Accès direct"
-                description="Naviguez plus vite dans les zones importantes."
-              />
+                {latestFeedback && (
+                  <Card style={{ padding: "24px", borderRadius: "24px" }}>
+                    <h3 className="session-title" style={{ marginBottom: "14px" }}>
+                      Dernier feedback IA
+                    </h3>
 
-              <div className="quick-actions-stack">
-                <Card
-                  hoverable
-                  style={{
-                    padding: "20px",
-                    borderRadius: "24px",
-                  }}
-                >
-                  <h3 className="quick-card-title">Démarrer une simulation</h3>
-                  <p className="quick-card-text">
-                    Lancez un nouveau scénario pour continuer à progresser.
-                  </p>
-                  <Button onClick={() => router.push("/scenarios")}>
-                    Aller aux scénarios
-                  </Button>
-                </Card>
+                    <div style={{ display: "grid", gap: "14px" }}>
+                      <div>
+                        <p className="feedback-label">Points forts</p>
+                        <p className="feedback-text">
+                          {latestFeedback.strengths ||
+                            "Feedback indisponible pour le moment."}
+                        </p>
+                      </div>
 
-                <Card
-                  hoverable
-                  style={{
-                    padding: "20px",
-                    borderRadius: "24px",
-                  }}
-                >
-                  <h3 className="quick-card-title">Consulter mes sessions</h3>
-                  <p className="quick-card-text">
-                    Retrouvez vos simulations actives et terminées.
-                  </p>
-                  <Button
-                    variant="secondary"
-                    onClick={() => router.push("/sessions")}
-                  >
-                    Ouvrir les sessions
-                  </Button>
-                </Card>
+                      <div>
+                        <p className="feedback-label">Points à améliorer</p>
+                        <p className="feedback-text">
+                          {latestFeedback.weaknesses ||
+                            "Feedback temporairement indisponible."}
+                        </p>
+                      </div>
 
-                <Card
-                  hoverable
-                  style={{
-                    padding: "20px",
-                    borderRadius: "24px",
-                  }}
-                >
-                  <h3 className="quick-card-title">Mettre à jour le profil</h3>
-                  <p className="quick-card-text">
-                    Gérez vos informations et préparez vos prochaines
-                    simulations.
-                  </p>
-                  <Button
-                    variant="secondary"
-                    onClick={() => router.push("/dashboard/profile")}
-                  >
-                    Ouvrir le profil
-                  </Button>
-                </Card>
-              </div>
-            </section>
-          </div>
+                      <div>
+                        <p className="feedback-label">Conseil final</p>
+                        <p className="feedback-text">
+                          {latestFeedback.final_advice ||
+                            "Réessayez plus tard ou vérifiez la configuration IA."}
+                        </p>
+                      </div>
+                    </div>
+                  </Card>
+                )}
+              </>
+            )}
+          </section>
 
           <section>
             <SectionHeader
-              eyebrow="Performance réelle"
-              title="Aperçu de performance"
-              description="Ces statistiques sont maintenant calculées à partir des feedbacks générés après vos sessions terminées."
+              eyebrow="Activité récente"
+              title="Sessions récentes"
+              description="Reprenez rapidement vos dernières simulations."
             />
 
-            <Card
-              style={{
-                padding: "22px",
-                borderRadius: "24px",
-                background: "linear-gradient(135deg, #ffffff, #f8fbff)",
-                border: "1px solid #dbeafe",
-                boxShadow: "0 18px 40px rgba(15,23,42,0.06)",
-              }}
-            >
-              {performance?.completed_rated_sessions > 0 ? (
-                <>
-                  <div className="performance-grid">
-                    <PerformanceMiniCard
-                      label="Score global moyen"
-                      value={formatScore(performance?.average_score)}
-                    />
-                    <PerformanceMiniCard
-                      label="Meilleur score"
-                      value={formatScore(performance?.best_score)}
-                    />
-                    <PerformanceMiniCard
-                      label="Communication"
-                      value={formatMetric(performance?.communication_average)}
-                    />
-                    <PerformanceMiniCard
-                      label="Confiance"
-                      value={formatMetric(performance?.confidence_average)}
-                    />
-                    <PerformanceMiniCard
-                      label="Clarté"
-                      value={formatMetric(performance?.clarity_average)}
-                    />
-                    <PerformanceMiniCard
-                      label="Pertinence"
-                      value={formatMetric(performance?.relevance_average)}
-                    />
-                    <PerformanceMiniCard
-                      label="Professionnalisme"
-                      value={formatMetric(
-                        performance?.professionalism_average
-                      )}
-                    />
-                    <PerformanceMiniCard
-                      label="Sessions évaluées"
-                      value={performance?.completed_rated_sessions ?? 0}
-                    />
-                  </div>
+            {recentSessions.length === 0 ? (
+              <Card style={{ padding: "24px", borderRadius: "24px" }}>
+                <p className="empty-text">
+                  Aucune session récente disponible pour le moment.
+                </p>
+              </Card>
+            ) : (
+              <div className="recent-grid">
+                {recentSessions.map((session) => {
+                  const title =
+                    session?.scenario?.title ||
+                    session?.scenario_title ||
+                    "Session sans titre";
 
-                  <div className="advice-grid">
-                    <div className="advice-card advice-blue">
-                      <h4 className="advice-title advice-title-blue">
-                        Points forts
-                      </h4>
-                      <p className="advice-text">
-                        {latestFeedback?.strengths ||
-                          "Aucun point fort disponible pour le moment."}
-                      </p>
-                    </div>
+                  const category =
+                    session?.scenario?.category ||
+                    session?.scenario_category ||
+                    "Catégorie inconnue";
 
-                    <div className="advice-card advice-orange">
-                      <h4 className="advice-title advice-title-orange">
-                        Axes d’amélioration
-                      </h4>
-                      <p className="advice-text">
-                        {latestFeedback?.weaknesses ||
-                          "Aucun axe d’amélioration disponible pour le moment."}
-                      </p>
-                    </div>
+                  const isCompleted = session.status === "completed";
 
-                    <div className="advice-card advice-green">
-                      <h4 className="advice-title advice-title-green">
-                        Conseil final
-                      </h4>
-                      <p className="advice-text">
-                        {latestFeedback?.final_advice ||
-                          "Aucun conseil final disponible pour le moment."}
-                      </p>
-                    </div>
-                  </div>
-                </>
-              ) : (
-                <Alert
-                  type="info"
-                  message="Aucune performance réelle n’est encore disponible. Termine au moins une session pour générer un feedback IA et voir tes vraies statistiques."
-                />
-              )}
-            </Card>
+                  return (
+                    <Card
+                      key={session.id}
+                      style={{ padding: "22px", borderRadius: "22px" }}
+                    >
+                      <div className="session-top">
+                        <div>
+                          <h3 className="session-title">{title}</h3>
+                          <p className="session-meta">
+                            {category} • {formatDate(session.created_at)}
+                          </p>
+                        </div>
+
+                        <div className="session-right">
+                          <span
+                            className={`status-badge ${
+                              isCompleted ? "completed" : "active"
+                            }`}
+                          >
+                            {isCompleted ? "Terminée" : "Active"}
+                          </span>
+
+                          <button
+                            onClick={() => router.push(`/session/${session.id}`)}
+                            className="resume-btn"
+                          >
+                            Reprendre
+                          </button>
+                        </div>
+                      </div>
+                    </Card>
+                  );
+                })}
+              </div>
+            )}
           </section>
         </div>
       </main>
@@ -617,13 +605,9 @@ export default function DashboardPage() {
         .page-container {
           max-width: 1200px;
           margin: 0 auto;
-          display: flex;
-          flex-direction: column;
-          gap: 24px;
         }
 
-        .hero-content {
-          position: relative;
+        .hero-row {
           display: flex;
           justify-content: space-between;
           align-items: flex-start;
@@ -631,31 +615,31 @@ export default function DashboardPage() {
           flex-wrap: wrap;
         }
 
-        .hero-text {
+        .hero-main {
           max-width: 760px;
           min-width: 0;
           flex: 1;
         }
 
-        .hero-eyebrow {
+        .eyebrow {
           margin: 0;
-          color: #1d4ed8;
+          color: #2563eb;
           font-size: 13px;
           font-weight: 800;
-          letter-spacing: 0.05em;
+          letter-spacing: 0.06em;
           text-transform: uppercase;
         }
 
         .hero-title {
-          margin: 10px 0 12px;
+          margin: 12px 0 10px;
           color: #0f172a;
-          font-size: clamp(30px, 4vw, 48px);
+          font-size: clamp(30px, 4vw, 46px);
           line-height: 1.05;
           font-weight: 900;
           letter-spacing: -0.04em;
         }
 
-        .hero-description {
+        .hero-text {
           margin: 0;
           color: #334155;
           font-size: 16px;
@@ -671,11 +655,61 @@ export default function DashboardPage() {
           margin-top: 18px;
         }
 
+        .badge {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          padding: 8px 14px;
+          border-radius: 999px;
+          font-size: 13px;
+          font-weight: 800;
+          border: 1px solid transparent;
+        }
+
+        .badge-blue {
+          background: #eff6ff;
+          color: #2563eb;
+          border-color: #bfdbfe;
+        }
+
+        .badge-green {
+          background: #ecfdf5;
+          color: #15803d;
+          border-color: #86efac;
+        }
+
+        .badge-amber {
+          background: #fff7ed;
+          color: #b45309;
+          border-color: #fcd34d;
+        }
+
         .hero-actions {
-          min-width: 220px;
           display: flex;
           flex-direction: column;
-          gap: 12px;
+          gap: 16px;
+          min-width: 280px;
+        }
+
+        .hero-button {
+          padding: 18px 24px;
+          border-radius: 20px;
+          border: 1px solid #cbd5e1;
+          font-size: 15px;
+          font-weight: 800;
+          cursor: pointer;
+          transition: all 0.2s ease;
+        }
+
+        .hero-button.primary {
+          background: #0f172a;
+          color: #ffffff;
+          border-color: #0f172a;
+        }
+
+        .hero-button.secondary {
+          background: #ffffff;
+          color: #0f172a;
         }
 
         .stats-grid {
@@ -684,140 +718,107 @@ export default function DashboardPage() {
           gap: 16px;
         }
 
-        .dashboard-two-columns {
+        .recent-grid {
           display: grid;
-          grid-template-columns: minmax(0, 1.6fr) minmax(280px, 1fr);
-          gap: 20px;
-          align-items: start;
+          gap: 16px;
         }
 
-        .recent-list {
-          display: flex;
-          flex-direction: column;
-          gap: 14px;
-        }
-
-        .recent-item {
+        .session-top {
           display: flex;
           justify-content: space-between;
           align-items: center;
-          gap: 14px;
-          padding: 16px;
-          border-radius: 22px;
-          border: 1px solid #e2e8f0;
-          background: linear-gradient(135deg, #ffffff, #f8fbff);
+          gap: 16px;
           flex-wrap: wrap;
         }
 
-        .recent-item-main {
-          min-width: 0;
-          flex: 1;
-        }
-
-        .recent-item-title {
-          margin: 0;
+        .session-title {
+          margin: 0 0 10px;
           color: #0f172a;
-          font-size: 17px;
+          font-size: 18px;
           font-weight: 800;
-          line-height: 1.3;
         }
 
-        .recent-item-meta {
-          margin: 8px 0 0;
+        .session-meta {
+          margin: 0;
           color: #64748b;
-          font-size: 14px;
-          line-height: 1.6;
+          font-size: 15px;
+          line-height: 1.7;
           font-weight: 500;
         }
 
-        .recent-item-actions {
+        .session-right {
           display: flex;
           align-items: center;
           gap: 10px;
           flex-wrap: wrap;
         }
 
-        .quick-actions-stack {
-          display: flex;
-          flex-direction: column;
-          gap: 16px;
+        .status-badge {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          padding: 8px 14px;
+          border-radius: 999px;
+          font-size: 13px;
+          font-weight: 800;
+          border: 1px solid transparent;
         }
 
-        .quick-card-title {
-          margin: 0;
+        .status-badge.active {
+          background: #fff7ed;
+          color: #b45309;
+          border-color: #fcd34d;
+        }
+
+        .status-badge.completed {
+          background: #ecfdf5;
+          color: #15803d;
+          border-color: #86efac;
+        }
+
+        .resume-btn {
+          padding: 14px 22px;
+          border-radius: 18px;
+          border: 1px solid #cbd5e1;
+          background: #ffffff;
           color: #0f172a;
-          font-size: 20px;
-          font-weight: 800;
+          font-size: 15px;
+          font-weight: 700;
+          cursor: pointer;
         }
 
-        .quick-card-text {
-          margin: 10px 0 16px;
-          color: #64748b;
-          line-height: 1.7;
-          font-size: 14px;
-        }
-
-        .performance-grid {
-          display: grid;
-          grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-          gap: 14px;
-          margin-bottom: 18px;
-        }
-
-        .advice-grid {
-          display: grid;
-          grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-          gap: 14px;
-        }
-
-        .advice-card {
-          padding: 18px;
-          border-radius: 22px;
-        }
-
-        .advice-blue {
-          background: linear-gradient(135deg, #eff6ff, #ffffff);
-          border: 1px solid #bfdbfe;
-        }
-
-        .advice-orange {
-          background: linear-gradient(135deg, #fff7ed, #ffffff);
-          border: 1px solid #fdba74;
-        }
-
-        .advice-green {
-          background: linear-gradient(135deg, #f0fdf4, #ffffff);
-          border: 1px solid #86efac;
-        }
-
-        .advice-title {
+        .empty-text {
           margin: 0;
-          font-size: 16px;
+          color: #64748b;
+          font-size: 15px;
+          line-height: 1.75;
+        }
+
+        .feedback-label {
+          margin: 0 0 6px;
+          color: #0f172a;
+          font-size: 14px;
           font-weight: 800;
         }
 
-        .advice-title-blue {
-          color: #1d4ed8;
-        }
-
-        .advice-title-orange {
-          color: #c2410c;
-        }
-
-        .advice-title-green {
-          color: #166534;
-        }
-
-        .advice-text {
-          margin: 10px 0 0;
+        .feedback-text {
+          margin: 0;
           color: #475569;
+          font-size: 15px;
           line-height: 1.7;
-          font-size: 14px;
+          font-weight: 500;
+          white-space: pre-wrap;
+          word-break: break-word;
         }
 
-        @media (max-width: 960px) {
-          .dashboard-two-columns {
-            grid-template-columns: 1fr;
+        @media (max-width: 900px) {
+          .page-shell {
+            padding: 28px 18px 48px;
+          }
+
+          .hero-row {
+            flex-direction: column;
+            align-items: stretch;
           }
 
           .hero-actions {
@@ -828,39 +829,25 @@ export default function DashboardPage() {
 
         @media (max-width: 640px) {
           .page-shell {
-            padding: 20px 12px 40px;
-          }
-
-          .page-container {
-            gap: 18px;
+            padding: 20px 12px 36px;
           }
 
           .hero-title {
-            font-size: 38px;
+            font-size: 32px;
           }
 
-          .hero-description {
+          .hero-text {
             font-size: 15px;
             line-height: 1.7;
           }
 
-          .stats-grid,
-          .performance-grid,
-          .advice-grid {
+          .stats-grid {
             grid-template-columns: 1fr;
           }
 
-          .recent-item {
-            padding: 14px;
-          }
-
-          .recent-item-actions {
+          .session-right {
             width: 100%;
             justify-content: flex-start;
-          }
-
-          .quick-card-title {
-            font-size: 18px;
           }
         }
       `}</style>

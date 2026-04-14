@@ -6,7 +6,7 @@ import Navbar from "../../components/Navbar";
 import Button from "../../components/ui/Button";
 import Card from "../../components/ui/Card";
 import Alert from "../../components/ui/Alert";
-import { loginUser } from "../../lib/api";
+import { loginUser, getMe } from "../../lib/api";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -18,12 +18,30 @@ export default function LoginPage() {
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
-    const token = localStorage.getItem("token");
-    if (token) {
-      router.replace("/dashboard");
-      return;
+    async function checkExistingSession() {
+      const token = localStorage.getItem("token");
+
+      if (!token) {
+        setMounted(true);
+        return;
+      }
+
+      try {
+        const me = await getMe(token);
+
+        if (me?.role === "admin") {
+          router.replace("/dashboard/admin");
+          return;
+        }
+
+        router.replace("/dashboard");
+      } catch {
+        localStorage.removeItem("token");
+        setMounted(true);
+      }
     }
-    setMounted(true);
+
+    checkExistingSession();
   }, [router]);
 
   async function handleSubmit(e) {
@@ -48,6 +66,14 @@ export default function LoginPage() {
       }
 
       localStorage.setItem("token", data.access_token);
+
+      const me = await getMe(data.access_token);
+
+      if (me?.role === "admin") {
+        router.replace("/dashboard/admin");
+        return;
+      }
+
       router.replace("/dashboard");
     } catch (err) {
       setError(err.message || "Connexion impossible.");

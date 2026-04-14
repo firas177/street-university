@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
+import { getMe } from "../lib/api";
+
 function NavItem({ label, active, onClick }) {
   const [hovered, setHovered] = useState(false);
 
@@ -38,11 +40,31 @@ export default function Navbar() {
 
   const [mounted, setMounted] = useState(false);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [userRole, setUserRole] = useState(null);
 
   useEffect(() => {
-    setMounted(true);
-    const token = localStorage.getItem("token");
-    setIsAuthenticated(!!token);
+    async function loadNavbarState() {
+      setMounted(true);
+
+      const token = localStorage.getItem("token");
+
+      if (!token) {
+        setIsAuthenticated(false);
+        setUserRole(null);
+        return;
+      }
+
+      setIsAuthenticated(true);
+
+      try {
+        const me = await getMe(token);
+        setUserRole(me?.role || null);
+      } catch {
+        setUserRole(null);
+      }
+    }
+
+    loadNavbarState();
   }, [pathname]);
 
   const handleLogout = () => {
@@ -58,14 +80,41 @@ export default function Navbar() {
     { label: "Inscription", path: "/auth/register" },
   ];
 
-  const authLinks = [
-    { label: "Accueil", path: "/" },
+  const userLinks = [
+    { label: "Accueil", path: "/dashboard" },
     { label: "Scénarios", path: "/scenarios" },
     { label: "Mes sessions", path: "/sessions" },
     { label: "Profil", path: "/dashboard/profile" },
   ];
 
-  const links = isAuthenticated ? authLinks : guestLinks;
+  const adminLinks = [
+    { label: "Dashboard admin", path: "/dashboard/admin" },
+    { label: "Scénarios admin", path: "/dashboard/admin/scenarios" },
+    { label: "Utilisateurs", path: "/dashboard/admin/users" },
+    { label: "Offres", path: "/pricing" },
+  ];
+
+  let links = guestLinks;
+
+  if (isAuthenticated && userRole === "admin") {
+    links = adminLinks;
+  } else if (isAuthenticated) {
+    links = userLinks;
+  }
+
+  const handleBrandClick = () => {
+    if (!isAuthenticated) {
+      router.push("/");
+      return;
+    }
+
+    if (userRole === "admin") {
+      router.push("/dashboard/admin");
+      return;
+    }
+
+    router.push("/dashboard");
+  };
 
   return (
     <header
@@ -91,7 +140,7 @@ export default function Navbar() {
         }}
       >
         <div
-          onClick={() => router.push(isAuthenticated ? "/dashboard" : "/")}
+          onClick={handleBrandClick}
           style={{
             cursor: "pointer",
             display: "flex",

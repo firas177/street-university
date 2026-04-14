@@ -160,3 +160,14 @@ export async function getDashboardPerformance(token) {
     "Impossible de récupérer les statistiques de performance"
   );
 }
+export async function createScenario(token, payload) {
+  return fetchJson(
+    "/scenarios",
+    {
+      method: "POST",
+      headers: authHeaders(token),
+      body: JSON.stringify(payload),
+    },
+    "Impossible de créer le scénario"
+  );
+}

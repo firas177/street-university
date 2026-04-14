@@ -3,89 +3,23 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Navbar from "../../components/Navbar";
+import Button from "../../components/ui/Button";
 import Card from "../../components/ui/Card";
 import Alert from "../../components/ui/Alert";
-import Button from "../../components/ui/Button";
-import { getMe } from "../../lib/api";
-
-function InfoMiniCard({ label, value }) {
-  return (
-    <div
-      style={{
-        border: "1px solid #dbeafe",
-        borderRadius: "18px",
-        padding: "18px",
-        background: "#f8fafc",
-        minWidth: 0,
-      }}
-    >
-      <div
-        style={{
-          color: "#2563eb",
-          fontWeight: 700,
-          marginBottom: 8,
-          fontSize: "14px",
-        }}
-      >
-        {label}
-      </div>
-      <div
-        style={{
-          color: "#334155",
-          wordBreak: "break-word",
-          lineHeight: 1.6,
-          fontSize: "15px",
-        }}
-      >
-        {value || "Non disponible"}
-      </div>
-    </div>
-  );
-}
-
-function DetailCard({ label, value }) {
-  return (
-    <div
-      style={{
-        border: "1px solid #dbeafe",
-        borderRadius: "18px",
-        padding: "18px",
-        background: "#f8fafc",
-        minWidth: 0,
-      }}
-    >
-      <div
-        style={{
-          fontWeight: 700,
-          color: "#0f172a",
-          marginBottom: 8,
-          fontSize: "15px",
-        }}
-      >
-        {label}
-      </div>
-      <div
-        style={{
-          color: "#475569",
-          wordBreak: "break-word",
-          lineHeight: 1.65,
-          fontSize: "15px",
-        }}
-      >
-        {value || "Non disponible"}
-      </div>
-    </div>
-  );
-}
+import { getProfile } from "../../lib/api";
 
 export default function ProfilePage() {
   const router = useRouter();
+
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
+  const currentPlan = "Free";
+  const isPremium = currentPlan === "Premium";
+
   useEffect(() => {
-    const loadProfile = async () => {
+    async function loadProfile() {
       try {
         const token = localStorage.getItem("token");
 
@@ -94,270 +28,285 @@ export default function ProfilePage() {
           return;
         }
 
-        const data = await getMe(token);
-        setProfile(data);
+        const data = await getProfile(token);
+        setProfile(data || null);
       } catch (err) {
-        setError(err.message || "Erreur lors du chargement du profil");
+        setError(err.message || "Impossible de charger le profil.");
       } finally {
         setLoading(false);
       }
-    };
+    }
 
     loadProfile();
   }, [router]);
 
+  if (loading) {
+    return (
+      <>
+        <Navbar />
+        <main className="page-shell">
+          <div className="page-container">
+            <Card style={{ padding: "28px", borderRadius: "28px" }}>
+              <h1 className="page-title">Chargement du profil...</h1>
+              <p className="page-text">
+                Nous récupérons les informations du compte.
+              </p>
+            </Card>
+          </div>
+        </main>
+
+        <style jsx>{`
+          .page-shell {
+            min-height: 100vh;
+            background: linear-gradient(180deg, #f8fbff 0%, #eef4ff 45%, #ffffff 100%);
+            padding: 32px 20px 60px;
+          }
+
+          .page-container {
+            max-width: 900px;
+            margin: 0 auto;
+          }
+
+          .page-title {
+            margin: 0;
+            color: #0f172a;
+            font-size: clamp(28px, 4vw, 40px);
+            line-height: 1.1;
+            font-weight: 900;
+            letter-spacing: -0.03em;
+          }
+
+          .page-text {
+            margin: 12px 0 0;
+            color: #64748b;
+            font-size: 15px;
+            line-height: 1.7;
+          }
+        `}</style>
+      </>
+    );
+  }
+
   return (
-    <div
-      style={{
-        minHeight: "100vh",
-        background: "linear-gradient(to bottom, #f8fafc, #e2e8f0)",
-      }}
-    >
+    <>
       <Navbar />
 
-      <main className="profile-shell">
-        <div className="hero-card">
-          <div
-            style={{
-              display: "inline-block",
-              padding: "8px 16px",
-              borderRadius: "999px",
-              background: "rgba(255,255,255,0.12)",
-              border: "1px solid rgba(255,255,255,0.18)",
-              marginBottom: "18px",
-              fontWeight: 600,
-            }}
-          >
-            Mon profil
-          </div>
+      <main className="page-shell">
+        <div className="page-container">
+          {error && (
+            <Alert type="warning" style={{ marginBottom: "18px" }}>
+              {error}
+            </Alert>
+          )}
 
-          <h1 className="hero-title">Profil utilisateur</h1>
-
-          <p className="hero-text">
-            Voici les informations principales de votre compte.
-          </p>
-        </div>
-
-        {loading && (
           <Card
             style={{
-              padding: "20px",
-              borderRadius: "20px",
+              padding: "28px",
+              borderRadius: "28px",
             }}
           >
-            Chargement du profil...
+            <div className="top-actions">
+              <Button
+                variant="blue"
+                onClick={() => router.push("/pricing")}
+              >
+                Passer au Premium
+              </Button>
+            </div>
+
+            <div className="plan-banner">
+              <div>
+                <p className="plan-label">Plan actuel</p>
+                <h3 className="plan-title">{isPremium ? "Premium" : "Free"}</h3>
+                <p className="plan-description">
+                  {isPremium
+                    ? "Vous avez accès aux fonctionnalités avancées de Street University."
+                    : "Vous êtes actuellement sur le plan gratuit avec accès de base."}
+                </p>
+              </div>
+
+              <span className={`plan-badge ${isPremium ? "premium" : "free"}`}>
+                {isPremium ? "Premium" : "Free"}
+              </span>
+            </div>
+
+            <h1 className="section-title">Informations principales</h1>
+
+            <div className="info-list">
+              <div className="info-card">
+                <h3 className="info-title">Nom complet</h3>
+                <p className="info-value">{profile?.full_name || "—"}</p>
+              </div>
+
+              <div className="info-card">
+                <h3 className="info-title">Adresse email</h3>
+                <p className="info-value email-break">{profile?.email || "—"}</p>
+              </div>
+
+              <div className="info-card">
+                <h3 className="info-title">Rôle</h3>
+                <p className="info-value">{profile?.role || "student"}</p>
+              </div>
+
+              <div className="info-card">
+                <h3 className="info-title">Identifiant utilisateur</h3>
+                <p className="info-value id-break">{profile?.id || "—"}</p>
+              </div>
+            </div>
           </Card>
-        )}
-
-        {error && !loading && (
-          <Alert
-            type="error"
-            message={error}
-            style={{ borderRadius: "20px", marginBottom: "20px" }}
-          />
-        )}
-
-        {!loading && !error && profile && (
-          <div className="profile-grid">
-            <Card
-              style={{
-                borderRadius: "28px",
-                padding: "32px",
-              }}
-            >
-              <p className="section-eyebrow">IDENTITÉ</p>
-
-              <h2 className="section-title">Un aperçu de ton compte.</h2>
-
-              <p className="section-description">
-                Cette page affiche les données principales de l’utilisateur
-                connecté au backend.
-              </p>
-
-              <div className="mini-grid">
-                <InfoMiniCard
-                  label="NOM"
-                  value={profile.full_name || "Non disponible"}
-                />
-                <InfoMiniCard
-                  label="EMAIL"
-                  value={profile.email || "Non disponible"}
-                />
-                <InfoMiniCard
-                  label="IDENTIFIANT"
-                  value={profile.id || "Non disponible"}
-                />
-              </div>
-            </Card>
-
-            <Card
-              style={{
-                borderRadius: "28px",
-                padding: "32px",
-              }}
-            >
-              <p className="section-eyebrow">DÉTAILS</p>
-
-              <h2
-                style={{
-                  fontSize: "clamp(1.6rem, 3vw, 2rem)",
-                  fontWeight: 800,
-                  color: "#0f172a",
-                  marginTop: 0,
-                  marginBottom: "20px",
-                  lineHeight: 1.15,
-                }}
-              >
-                Informations principales
-              </h2>
-
-              <div
-                style={{
-                  display: "grid",
-                  gap: "16px",
-                }}
-              >
-                <DetailCard
-                  label="Nom complet"
-                  value={profile.full_name || "Non disponible"}
-                />
-
-                <DetailCard
-                  label="Adresse email"
-                  value={profile.email || "Non disponible"}
-                />
-
-                <DetailCard
-                  label="Rôle"
-                  value={profile.role || "student"}
-                />
-
-                <DetailCard
-                  label="Identifiant utilisateur"
-                  value={profile.id || "Non disponible"}
-                />
-              </div>
-
-              <div
-                style={{
-                  marginTop: "20px",
-                  display: "flex",
-                  gap: "12px",
-                  flexWrap: "wrap",
-                }}
-              >
-                <Button onClick={() => router.push("/dashboard")}>
-                  Retour au dashboard
-                </Button>
-
-                <Button
-                  variant="secondary"
-                  onClick={() => router.push("/sessions")}
-                >
-                  Voir mes sessions
-                </Button>
-              </div>
-            </Card>
-          </div>
-        )}
+        </div>
       </main>
 
       <style jsx>{`
-        .profile-shell {
-          max-width: 1200px;
+        .page-shell {
+          min-height: 100vh;
+          background: linear-gradient(180deg, #f8fbff 0%, #eef4ff 45%, #ffffff 100%);
+          padding: 32px 20px 60px;
+        }
+
+        .page-container {
+          max-width: 900px;
           margin: 0 auto;
-          padding: 32px 20px 48px;
         }
 
-        .hero-card {
-          background: linear-gradient(135deg, #1e3a8a, #0f172a);
-          border-radius: 32px;
-          padding: 40px;
-          color: white;
-          margin-bottom: 28px;
-          box-shadow: 0 24px 60px rgba(15, 23, 42, 0.18);
+        .top-actions {
+          display: flex;
+          justify-content: flex-start;
+          margin-bottom: 20px;
         }
 
-        .hero-title {
-          font-size: clamp(2rem, 5vw, 3rem);
-          font-weight: 800;
-          margin: 0 0 12px;
-          line-height: 1.05;
+        .plan-banner {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          gap: 16px;
+          flex-wrap: wrap;
+          padding: 20px 22px;
+          border-radius: 22px;
+          background: linear-gradient(135deg, #ffffff, #eff6ff);
+          border: 1px solid #dbeafe;
+          box-shadow: 0 14px 30px rgba(15, 23, 42, 0.05);
+          margin-bottom: 22px;
         }
 
-        .hero-text {
-          margin: 0;
-          font-size: 1.05rem;
-          line-height: 1.7;
-          color: rgba(255, 255, 255, 0.9);
-          max-width: 700px;
-        }
-
-        .profile-grid {
-          display: grid;
-          grid-template-columns: 1fr 1fr;
-          gap: 20px;
-        }
-
-        .section-eyebrow {
+        .plan-label {
+          margin: 0 0 6px;
           color: #2563eb;
-          font-weight: 700;
-          margin-bottom: 8px;
+          font-size: 12px;
+          font-weight: 800;
+          letter-spacing: 0.06em;
+          text-transform: uppercase;
+        }
+
+        .plan-title {
+          margin: 0 0 6px;
+          color: #0f172a;
+          font-size: 24px;
+          font-weight: 900;
+        }
+
+        .plan-description {
+          margin: 0;
+          color: #64748b;
           font-size: 14px;
+          line-height: 1.7;
+          font-weight: 500;
+          max-width: 560px;
+        }
+
+        .plan-badge {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          padding: 10px 16px;
+          border-radius: 999px;
+          font-size: 13px;
+          font-weight: 800;
+          border: 1px solid transparent;
+          min-width: 90px;
+        }
+
+        .plan-badge.free {
+          background: #eff6ff;
+          color: #2563eb;
+          border-color: #bfdbfe;
+        }
+
+        .plan-badge.premium {
+          background: #fef3c7;
+          color: #b45309;
+          border-color: #fcd34d;
         }
 
         .section-title {
-          font-size: clamp(1.9rem, 4vw, 2.4rem);
-          font-weight: 800;
+          margin: 0 0 22px;
           color: #0f172a;
-          margin-top: 0;
-          margin-bottom: 18px;
-          line-height: 1.1;
+          font-size: clamp(30px, 4vw, 42px);
+          line-height: 1.08;
+          font-weight: 900;
+          letter-spacing: -0.03em;
         }
 
-        .section-description {
-          color: #64748b;
-          line-height: 1.7;
-          margin-bottom: 28px;
-          font-size: 15px;
-        }
-
-        .mini-grid {
+        .info-list {
           display: grid;
-          grid-template-columns: repeat(3, minmax(0, 1fr));
-          gap: 14px;
+          gap: 18px;
         }
 
-        @media (max-width: 960px) {
-          .profile-grid {
-            grid-template-columns: 1fr;
-          }
-
-          .mini-grid {
-            grid-template-columns: 1fr 1fr;
-          }
+        .info-card {
+          border: 1px solid #dbeafe;
+          border-radius: 22px;
+          padding: 20px;
+          background: #ffffff;
         }
 
-        @media (max-width: 640px) {
-          .profile-shell {
+        .info-title {
+          margin: 0 0 10px;
+          color: #0f172a;
+          font-size: 15px;
+          font-weight: 800;
+        }
+
+        .info-value {
+          margin: 0;
+          color: #475569;
+          font-size: 15px;
+          line-height: 1.75;
+          word-break: break-word;
+        }
+
+        .email-break,
+        .id-break {
+          overflow-wrap: anywhere;
+          word-break: break-word;
+        }
+
+        @media (max-width: 700px) {
+          .page-shell {
             padding: 20px 12px 36px;
           }
 
-          .hero-card {
-            padding: 24px 20px;
-            border-radius: 24px;
-            margin-bottom: 20px;
+          .section-title {
+            font-size: 32px;
           }
 
-          .hero-text {
-            font-size: 0.98rem;
+          .top-actions {
+            flex-direction: column;
+            align-items: stretch;
           }
 
-          .mini-grid {
-            grid-template-columns: 1fr;
+          .plan-banner {
+            padding: 18px;
+          }
+
+          .plan-title {
+            font-size: 20px;
+          }
+
+          .plan-badge {
+            width: 100%;
           }
         }
       `}</style>
-    </div>
+    </>
   );
 }
