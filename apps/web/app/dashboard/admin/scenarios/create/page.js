@@ -127,7 +127,17 @@ export default function AdminCreateScenarioPage() {
       setSuccess("Scénario créé avec succès.");
       setForm(initialForm);
     } catch (err) {
-      setError(err?.message || "Impossible de créer le scénario.");
+  console.error("Erreur création scénario:", err);
+
+  const message =
+    typeof err === "string"
+      ? err
+      : err?.message
+      ? err.message
+      : "Impossible de créer le scénario.";
+
+  setError(message);
+}
     } finally {
       setLoading(false);
     }

@@ -12,10 +12,34 @@ async function parseJsonSafe(response) {
 
 async function fetchJson(path, options = {}, defaultError = "Erreur API") {
   const response = await fetch(`${API_BASE_URL}${path}`, options);
-  const data = await parseJsonSafe(response);
+
+  let data = null;
+  try {
+    data = await response.json();
+  } catch {
+    data = null;
+  }
 
   if (!response.ok) {
-    throw new Error(data?.detail || defaultError);
+    let message = defaultError;
+
+    if (typeof data?.detail === "string") {
+      message = data.detail;
+    } else if (Array.isArray(data?.detail)) {
+      message = data.detail
+        .map((item) => {
+          if (typeof item === "string") return item;
+          if (item?.msg) return item.msg;
+          return JSON.stringify(item);
+        })
+        .join(" | ");
+    } else if (data?.detail && typeof data.detail === "object") {
+      message = JSON.stringify(data.detail);
+    } else if (typeof data?.message === "string") {
+      message = data.message;
+    }
+
+    throw new Error(message);
   }
 
   return data;
