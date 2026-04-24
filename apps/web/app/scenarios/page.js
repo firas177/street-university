@@ -10,6 +10,10 @@ import Card from "../components/ui/Card";
 import SectionHeader from "../components/ui/SectionHeader";
 import { getScenarios, startSession } from "../lib/api";
 
+const SESSION_DURATION_SECONDS = 60;
+// Version finale PFE :
+// const SESSION_DURATION_SECONDS = 900;
+
 function getDifficultyLabel(value) {
   if (value === 1) return "Facile";
   if (value === 2) return "Moyen";
@@ -69,7 +73,11 @@ export default function ScenariosPage() {
       setStartingId(scenarioId);
       setError("");
 
-      const session = await startSession(token, scenarioId);
+      const session = await startSession(
+        token,
+        scenarioId,
+        SESSION_DURATION_SECONDS
+      );
 
       if (!session?.id) {
         throw new Error("Session non créée correctement.");
@@ -148,7 +156,7 @@ export default function ScenariosPage() {
             <SectionHeader
               eyebrow="Scénarios"
               title="Choisis une simulation"
-              description="Sélectionne un scénario pour commencer."
+              description="Sélectionne un scénario pour commencer. Chaque simulation a un temps limité."
             />
 
             {scenarios.length === 0 ? (
@@ -241,6 +249,17 @@ export default function ScenariosPage() {
                         >
                           {scenario.description ||
                             "Aucune description disponible pour ce scénario."}
+                        </p>
+
+                        <p
+                          style={{
+                            margin: "14px 0 0",
+                            color: "#2563eb",
+                            fontSize: "13px",
+                            fontWeight: 700,
+                          }}
+                        >
+                          Temps limité : {Math.floor(SESSION_DURATION_SECONDS / 60)} min
                         </p>
                       </div>
 

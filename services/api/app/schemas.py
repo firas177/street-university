@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Optional, List
 
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr, Field
 
 
 class UserCreate(BaseModel):
@@ -59,8 +59,13 @@ class ScenarioMiniOut(BaseModel):
         from_attributes = True
 
 
+# =========================
+# Sessions
+# =========================
+
 class SessionStartIn(BaseModel):
     scenario_id: str
+    duration_seconds: Optional[int] = None
 
 
 class SessionOut(BaseModel):
@@ -68,6 +73,15 @@ class SessionOut(BaseModel):
     user_id: str
     scenario_id: str
     status: str
+
+    duration_seconds: Optional[int] = None
+    started_at: Optional[datetime] = None
+    expires_at: Optional[datetime] = None
+    completed_at: Optional[datetime] = None
+    completion_reason: Optional[str] = None
+    remaining_seconds: Optional[int] = None
+    is_expired: Optional[bool] = None
+
     created_at: datetime
 
     class Config:
@@ -79,6 +93,15 @@ class SessionListItemOut(BaseModel):
     user_id: str
     scenario_id: str
     status: str
+
+    duration_seconds: Optional[int] = None
+    started_at: Optional[datetime] = None
+    expires_at: Optional[datetime] = None
+    completed_at: Optional[datetime] = None
+    completion_reason: Optional[str] = None
+    remaining_seconds: Optional[int] = None
+    is_expired: Optional[bool] = None
+
     created_at: datetime
     scenario: Optional[ScenarioMiniOut] = None
 
@@ -91,11 +114,24 @@ class SessionStatusUpdateOut(BaseModel):
     user_id: str
     scenario_id: str
     status: str
+
+    duration_seconds: Optional[int] = None
+    started_at: Optional[datetime] = None
+    expires_at: Optional[datetime] = None
+    completed_at: Optional[datetime] = None
+    completion_reason: Optional[str] = None
+    remaining_seconds: Optional[int] = None
+    is_expired: Optional[bool] = None
+
     created_at: datetime
 
     class Config:
         from_attributes = True
 
+
+# =========================
+# Messages
+# =========================
 
 class MessageIn(BaseModel):
     content: str
@@ -111,6 +147,10 @@ class MessageOut(BaseModel):
     class Config:
         from_attributes = True
 
+
+# =========================
+# Feedback
+# =========================
 
 class SessionFeedbackOut(BaseModel):
     id: str
@@ -138,14 +178,27 @@ class SessionDetailOut(BaseModel):
     user_id: str
     scenario_id: str
     status: str
+
+    duration_seconds: Optional[int] = None
+    started_at: Optional[datetime] = None
+    expires_at: Optional[datetime] = None
+    completed_at: Optional[datetime] = None
+    completion_reason: Optional[str] = None
+    remaining_seconds: Optional[int] = None
+    is_expired: Optional[bool] = None
+
     created_at: datetime
     scenario: Optional[ScenarioMiniOut] = None
-    messages: List[MessageOut] = []
+    messages: List[MessageOut] = Field(default_factory=list)
     feedback: Optional[SessionFeedbackOut] = None
 
     class Config:
         from_attributes = True
 
+
+# =========================
+# Dashboard
+# =========================
 
 class DashboardPerformanceOut(BaseModel):
     average_score: Optional[float] = None
@@ -159,3 +212,24 @@ class DashboardPerformanceOut(BaseModel):
     professionalism_average: Optional[float] = None
 
     latest_feedback: Optional[SessionFeedbackOut] = None
+
+
+# =========================
+# Voice
+# =========================
+
+class VoiceMessageOut(BaseModel):
+    session_id: str
+    session_status: str
+    transcription: str
+
+    duration_seconds: Optional[int] = None
+    started_at: Optional[datetime] = None
+    expires_at: Optional[datetime] = None
+    completed_at: Optional[datetime] = None
+    completion_reason: Optional[str] = None
+    remaining_seconds: Optional[int] = None
+    is_expired: Optional[bool] = None
+
+    user_message: MessageOut
+    assistant_message: MessageOut

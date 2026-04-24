@@ -94,54 +94,58 @@ export default function AdminCreateScenarioPage() {
     return "";
   }
 
-  async function handleSubmit(e) {
-    e.preventDefault();
+async function handleSubmit(e) {
+  e.preventDefault();
 
-    setError("");
-    setSuccess("");
+  setError("");
+  setLoading(true);
 
-    const validationError = validateForm();
-    if (validationError) {
-      setError(validationError);
-      return;
-    }
-
-    const token = localStorage.getItem("token");
-
-    if (!token) {
-      router.replace("/auth/login");
-      return;
-    }
-
-    try {
-      setLoading(true);
-
-      await createScenario(token, {
-        title: form.title.trim(),
-        description: form.description.trim(),
-        category: form.category.trim(),
-        difficulty: form.difficulty.trim(),
-        system_prompt: form.system_prompt.trim(),
-      });
-
-      setSuccess("Scénario créé avec succès.");
-      setForm(initialForm);
-    } catch (err) {
-  console.error("Erreur création scénario:", err);
-
-  const message =
-    typeof err === "string"
-      ? err
-      : err?.message
-      ? err.message
-      : "Impossible de créer le scénario.";
-
-  setError(message);
-}
-    } finally {
-      setLoading(false);
-    }
+  const validationError = validateForm();
+  if (validationError) {
+    setError(validationError);
+    setLoading(false);
+    return;
   }
+
+  const token = localStorage.getItem("token");
+
+  if (!token) {
+    setLoading(false);
+    router.replace("/auth/login");
+    return;
+  }
+
+  const difficultyMap = {
+    beginner: 1,
+    intermediate: 2,
+    advanced: 3,
+  };
+
+  try {
+    await createScenario(token, {
+      title: form.title,
+      description: form.description,
+      category: form.category,
+      difficulty: difficultyMap[form.difficulty] ?? 1,
+      system_prompt: form.system_prompt,
+    });
+
+    router.push("/dashboard/admin/scenarios");
+  } catch (err) {
+    console.error("Erreur création scénario:", err);
+
+    const message =
+      typeof err === "string"
+        ? err
+        : err?.message
+        ? err.message
+        : "Impossible de créer le scénario.";
+
+    setError(message);
+  } finally {
+    setLoading(false);
+  }
+}
 
   if (pageLoading) {
     return (

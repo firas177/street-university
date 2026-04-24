@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Alert from "./Alert";
 import Button from "./Button";
 import Card from "./Card";
@@ -84,58 +84,94 @@ function UploadIcon() {
   );
 }
 
+function getSupportedMimeType() {
+  const candidates = [
+    "audio/webm;codecs=opus",
+    "audio/webm",
+    "audio/mp4",
+    "audio/ogg;codecs=opus",
+  ];
+
+  for (const type of candidates) {
+    if (typeof MediaRecorder !== "undefined" && MediaRecorder.isTypeSupported(type)) {
+      return type;
+    }
+  }
+
+  return "";
+}
+
+function getExtensionFromMimeType(mimeType) {
+  if (!mimeType) return "webm";
+  if (mimeType.includes("mp4")) return "mp4";
+  if (mimeType.includes("ogg")) return "ogg";
+  return "webm";
+}
+
 export default function VoiceMessageBox({
   onSend,
   disabled = false,
   transcription = "",
 }) {
   const fileInputRef = useRef(null);
+  const mediaRecorderRef = useRef(null);
+  const mediaStreamRef = useRef(null);
+  const chunksRef = useRef([]);
+  const timerRef = useRef(null);
 
   const [status, setStatus] = useState("ready");
   const [selectedFile, setSelectedFile] = useState(null);
   const [audioDuration, setAudioDuration] = useState(0);
   const [error, setError] = useState("");
 
+  useEffect(() => {
+    return () => {
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+      }
+
+      if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
+        mediaRecorderRef.current.stop();
+      }
+
+      if (mediaStreamRef.current) {
+        mediaStreamRef.current.getTracks().forEach((track) => track.stop());
+      }
+    };
+  }, []);
+
   function handleOpenFilePicker() {
-    if (disabled) return;
+    if (disabled || status === "recording") return;
     fileInputRef.current?.click();
   }
+ function normalizeMimeType(value) {
+  return (value || "").split(";")[0].trim().toLowerCase();
+}
 
-  function handleFakeRecord() {
-    if (disabled) return;
+function validateAudioFile(file) {
+  const allowedTypes = [
+    "audio/mpeg",
+    "audio/mp3",
+    "audio/wav",
+    "audio/x-wav",
+    "audio/webm",
+    "audio/ogg",
+    "audio/mp4",
+    "audio/x-m4a",
+    "audio/aac",
+    "video/webm",
+  ];
 
-    setError("");
-    setStatus("recording");
+  const normalizedType = normalizeMimeType(file.type);
 
-    setTimeout(() => {
-      setStatus("ready");
-    }, 2000);
+  if (!allowedTypes.includes(normalizedType)) {
+    throw new Error(
+      `Format audio non supporté: ${file.type || "inconnu"}. Utilise mp3, wav, webm, ogg ou m4a.`
+    );
   }
-
-  function handleFileChange(e) {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    setError("");
-
-    const allowedTypes = [
-      "audio/mpeg",
-      "audio/mp3",
-      "audio/wav",
-      "audio/x-wav",
-      "audio/webm",
-      "audio/ogg",
-      "audio/mp4",
-      "audio/x-m4a",
-      "audio/aac",
-    ];
-
-    if (!allowedTypes.includes(file.type)) {
-      setSelectedFile(null);
-      setAudioDuration(0);
-      setError("Format audio non supporté. Utilise mp3, wav, webm, ogg ou m4a.");
-      return;
-    }
+}
+  function setFileWithMetadata(file) {
+    validateAudioFile(file);
 
     setSelectedFile(file);
 
@@ -154,6 +190,123 @@ export default function VoiceMessageBox({
     };
 
     setStatus("file_selected");
+  }
+
+  async function startRecording() {
+    if (disabled) return;
+
+    if (!navigator.mediaDevices?.getUserMedia) {
+      setError("Enregistrement micro non supporté sur ce navigateur.");
+      setStatus("error");
+      return;
+    }
+
+    try {
+      setError("");
+      setSelectedFile(null);
+      setAudioDuration(0);
+      chunksRef.current = [];
+
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      mediaStreamRef.current = stream;
+
+      const mimeType = getSupportedMimeType();
+      const recorder = mimeType
+        ? new MediaRecorder(stream, { mimeType })
+        : new MediaRecorder(stream);
+
+      mediaRecorderRef.current = recorder;
+
+      recorder.ondataavailable = (event) => {
+        if (event.data && event.data.size > 0) {
+          chunksRef.current.push(event.data);
+        }
+      };
+
+      recorder.onstop = () => {
+        try {
+          const finalMimeType = recorder.mimeType || mimeType || "audio/webm";
+          const blob = new Blob(chunksRef.current, { type: finalMimeType });
+
+          if (!blob.size) {
+            throw new Error("Aucun audio enregistré.");
+          }
+
+          const extension = getExtensionFromMimeType(finalMimeType);
+          const file = new File([blob], `recording-${Date.now()}.${extension}`, {
+            type: finalMimeType,
+          });
+
+          setFileWithMetadata(file);
+        } catch (err) {
+          setStatus("error");
+          setError(err?.message || "Impossible de récupérer l'enregistrement.");
+        } finally {
+          if (mediaStreamRef.current) {
+            mediaStreamRef.current.getTracks().forEach((track) => track.stop());
+            mediaStreamRef.current = null;
+          }
+        }
+      };
+
+      recorder.start();
+      setStatus("recording");
+      setAudioDuration(0);
+
+      timerRef.current = setInterval(() => {
+        setAudioDuration((prev) => prev + 1);
+      }, 1000);
+    } catch (err) {
+      setStatus("error");
+      setError(
+        err?.message || "Impossible d'accéder au microphone. Vérifie l'autorisation."
+      );
+    }
+  }
+
+  function stopRecording() {
+    try {
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+        timerRef.current = null;
+      }
+
+      const recorder = mediaRecorderRef.current;
+      if (recorder && recorder.state !== "inactive") {
+        recorder.stop();
+      } else {
+        setStatus("ready");
+      }
+    } catch (err) {
+      setStatus("error");
+      setError(err?.message || "Impossible d'arrêter l'enregistrement.");
+    }
+  }
+
+  function handleRecordClick() {
+    if (disabled || status === "sending") return;
+
+    if (status === "recording") {
+      stopRecording();
+      return;
+    }
+
+    startRecording();
+  }
+
+  function handleFileChange(e) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    try {
+      setError("");
+      setFileWithMetadata(file);
+    } catch (err) {
+      setSelectedFile(null);
+      setAudioDuration(0);
+      setStatus("error");
+      setError(err?.message || "Fichier audio invalide.");
+    }
   }
 
   async function handleSend() {
@@ -184,6 +337,10 @@ export default function VoiceMessageBox({
   }
 
   function handleRemoveFile() {
+    if (status === "recording") {
+      stopRecording();
+    }
+
     setSelectedFile(null);
     setAudioDuration(0);
     setError("");
@@ -256,7 +413,7 @@ export default function VoiceMessageBox({
             className={`round-button micro-button ${
               status === "recording" ? "recording" : ""
             }`}
-            onClick={handleFakeRecord}
+            onClick={handleRecordClick}
             disabled={disabled || status === "sending"}
             aria-label="Micro"
           >
@@ -267,7 +424,7 @@ export default function VoiceMessageBox({
             type="button"
             className="round-button upload-button"
             onClick={handleOpenFilePicker}
-            disabled={disabled || status === "sending"}
+            disabled={disabled || status === "sending" || status === "recording"}
             aria-label="Importer un audio"
           >
             <UploadIcon />

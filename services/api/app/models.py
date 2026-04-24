@@ -31,26 +31,42 @@ class Scenario(Base):
     creator = relationship("User")
     sessions = relationship("Session", back_populates="scenario")
 
-
 class Session(Base):
     __tablename__ = "sessions"
 
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
     user_id = Column(String, ForeignKey("users.id"), nullable=False)
     scenario_id = Column(String, ForeignKey("scenarios.id"), nullable=False)
+
     status = Column(String, nullable=False, default="active")
+
+    # Pourquoi la session est terminée :
+    # "manual" = utilisateur a terminé
+    # "timeout" = timer terminé
+    # "system" = autre raison automatique
+    completion_reason = Column(String, nullable=True)
+
+    # Timer
+    duration_seconds = Column(Integer, nullable=False, default=900, server_default="900")
+    started_at = Column(DateTime(timezone=True), nullable=True)
+    expires_at = Column(DateTime(timezone=True), nullable=True)
+    completed_at = Column(DateTime(timezone=True), nullable=True)
+
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 
     user = relationship("User")
     scenario = relationship("Scenario", back_populates="sessions")
-    messages = relationship("Message", back_populates="session", cascade="all, delete-orphan")
+    messages = relationship(
+        "Message",
+        back_populates="session",
+        cascade="all, delete-orphan",
+    )
     feedback = relationship(
         "SessionFeedback",
         back_populates="session",
         uselist=False,
         cascade="all, delete-orphan",
     )
-
 
 class Message(Base):
     __tablename__ = "messages"

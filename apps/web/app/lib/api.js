@@ -13,12 +13,7 @@ async function parseJsonSafe(response) {
 async function fetchJson(path, options = {}, defaultError = "Erreur API") {
   const response = await fetch(`${API_BASE_URL}${path}`, options);
 
-  let data = null;
-  try {
-    data = await response.json();
-  } catch {
-    data = null;
-  }
+  const data = await parseJsonSafe(response);
 
   if (!response.ok) {
     let message = defaultError;
@@ -106,18 +101,20 @@ export async function getScenarios(token) {
   );
 }
 
-export async function startSession(token, scenarioId) {
+export async function startSession(token, scenarioId, durationSeconds = 900) {
   return fetchJson(
     "/sessions/start",
     {
       method: "POST",
       headers: authHeaders(token),
-      body: JSON.stringify({ scenario_id: scenarioId }),
+      body: JSON.stringify({
+        scenario_id: scenarioId,
+        duration_seconds: durationSeconds,
+      }),
     },
     "Impossible de démarrer la session"
   );
 }
-
 export async function getSessions(token) {
   return fetchJson(
     "/sessions",
@@ -184,6 +181,7 @@ export async function getDashboardPerformance(token) {
     "Impossible de récupérer les statistiques de performance"
   );
 }
+
 export async function createScenario(token, payload) {
   return fetchJson(
     "/scenarios",
@@ -194,4 +192,44 @@ export async function createScenario(token, payload) {
     },
     "Impossible de créer le scénario"
   );
+}
+
+export async function sendVoiceMessage(token, sessionId, file) {
+  const formData = new FormData();
+  formData.append("audio", file);
+
+  const response = await fetch(
+    `${API_BASE_URL}/sessions/${sessionId}/voice-message`,
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+      body: formData,
+    }
+  );
+
+  const data = await parseJsonSafe(response);
+
+  if (!response.ok) {
+    let message = "Impossible d'envoyer le message vocal";
+
+    if (typeof data?.detail === "string") {
+      message = data.detail;
+    } else if (Array.isArray(data?.detail)) {
+      message = data.detail
+        .map((item) => {
+          if (typeof item === "string") return item;
+          if (item?.msg) return item.msg;
+          return JSON.stringify(item);
+        })
+        .join(" | ");
+    } else if (typeof data?.message === "string") {
+      message = data.message;
+    }
+
+    throw new Error(message);
+  }
+
+  return data;
 }

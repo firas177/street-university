@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Navbar from "../../components/Navbar";
 import VoiceMessageBox from "../../components/ui/VoiceMessageBox";
@@ -8,24 +8,102 @@ import {
   getSessionById,
   sendSessionMessage,
   completeSession,
+  sendVoiceMessage,
+  getSessionFeedback,
 } from "../../lib/api";
+
+function formatTimer(seconds) {
+  const safeSeconds = Math.max(0, Number(seconds || 0));
+  const minutes = Math.floor(safeSeconds / 60);
+  const remainingSeconds = safeSeconds % 60;
+
+  return `${String(minutes).padStart(2, "0")}:${String(
+    remainingSeconds
+  ).padStart(2, "0")}`;
+}
+
+function calculateRemainingSeconds(session) {
+  if (!session) return 0;
+
+  if (typeof session.remaining_seconds === "number") {
+    return Math.max(0, session.remaining_seconds);
+  }
+
+  if (session.expires_at) {
+    const expiresAt = new Date(session.expires_at).getTime();
+    const now = Date.now();
+
+    if (!Number.isNaN(expiresAt)) {
+      return Math.max(0, Math.floor((expiresAt - now) / 1000));
+    }
+  }
+
+  if (typeof session.duration_seconds === "number") {
+    return session.duration_seconds;
+  }
+
+  return 900;
+}
+
+function formatScore(value) {
+  if (value === null || value === undefined) return "0";
+  return String(value);
+}
 
 export default function SessionPage() {
   const router = useRouter();
   const params = useParams();
   const sessionId = params?.id;
 
+  const expireCalledRef = useRef(false);
+
   const [sessionData, setSessionData] = useState(null);
   const [messages, setMessages] = useState([]);
   const [content, setContent] = useState("");
+
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const [completing, setCompleting] = useState(false);
+
   const [error, setError] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
+
   const [voiceTranscription, setVoiceTranscription] = useState("");
   const [voiceError, setVoiceError] = useState("");
   const [voiceSuccess, setVoiceSuccess] = useState("");
+
+  const [remainingSeconds, setRemainingSeconds] = useState(null);
+
+  const [feedback, setFeedback] = useState(null);
+  const [feedbackLoading, setFeedbackLoading] = useState(false);
+  const [feedbackError, setFeedbackError] = useState("");
+
+  const status = sessionData?.status || "unknown";
+
+  const timerFinished =
+    Boolean(sessionData?.expires_at) &&
+    remainingSeconds !== null &&
+    Number(remainingSeconds) <= 0;
+
+  const isCompleted =
+    status === "completed" || sessionData?.is_expired || timerFinished;
+
+  const loadFeedback = useCallback(async (token, currentSessionId) => {
+    try {
+      setFeedbackLoading(true);
+      setFeedbackError("");
+
+      const data = await getSessionFeedback(token, currentSessionId);
+      setFeedback(data);
+    } catch (err) {
+      console.error("Feedback loading error:", err);
+      setFeedbackError(
+        err?.message || "Impossible de récupérer le feedback de la session."
+      );
+    } finally {
+      setFeedbackLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
     const loadSession = async () => {
@@ -40,84 +118,247 @@ export default function SessionPage() {
         if (!sessionId) return;
 
         const data = await getSessionById(token, sessionId);
+        const initialRemaining = calculateRemainingSeconds(data);
+
         setSessionData(data);
         setMessages(data?.messages || []);
+        setRemainingSeconds(initialRemaining);
+
+        if (data?.feedback) {
+          setFeedback(data.feedback);
+        }
+
+        if (data?.status === "completed" || data?.is_expired) {
+          setSuccessMessage("Cette session est terminée.");
+
+          if (!data?.feedback) {
+            await loadFeedback(token, sessionId);
+          }
+        }
       } catch (err) {
-        setError(err.message || "Erreur lors du chargement de la session");
+        setError(err?.message || "Erreur lors du chargement de la session");
       } finally {
         setLoading(false);
       }
     };
 
     loadSession();
-  }, [router, sessionId]);
+  }, [router, sessionId, loadFeedback]);
+
+  useEffect(() => {
+    if (!sessionData) return;
+    if (status !== "active") return;
+    if (remainingSeconds === null) return;
+    if (remainingSeconds <= 0) return;
+
+    const interval = setInterval(() => {
+      setRemainingSeconds((prev) => {
+        if (prev === null) return prev;
+        return Math.max(0, Number(prev || 0) - 1);
+      });
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [sessionData, status, remainingSeconds]);
+
+  useEffect(() => {
+    async function expireSessionAutomatically() {
+      if (!sessionData) return;
+      if (status !== "active") return;
+      if (remainingSeconds === null) return;
+      if (remainingSeconds > 0) return;
+      if (expireCalledRef.current) return;
+
+      expireCalledRef.current = true;
+
+      try {
+        setCompleting(true);
+        setError("");
+        setVoiceError("");
+        setSuccessMessage("Temps terminé. La session est clôturée.");
+
+        const token = localStorage.getItem("token");
+
+        setSessionData((prev) =>
+          prev
+            ? {
+                ...prev,
+                status: "completed",
+                is_expired: true,
+                remaining_seconds: 0,
+                completion_reason: "timeout",
+              }
+            : prev
+        );
+
+        if (token && sessionId) {
+          await completeSession(token, sessionId);
+
+          const freshSession = await getSessionById(token, sessionId);
+
+          setSessionData(freshSession);
+          setMessages(freshSession?.messages || []);
+          setRemainingSeconds(0);
+
+          if (freshSession?.feedback) {
+            setFeedback(freshSession.feedback);
+          } else {
+            await loadFeedback(token, sessionId);
+          }
+        }
+      } catch (err) {
+        console.error("Auto complete session error:", err);
+        setSuccessMessage("Temps terminé. La session est clôturée localement.");
+      } finally {
+        setCompleting(false);
+      }
+    }
+
+    expireSessionAutomatically();
+  }, [remainingSeconds, sessionData, status, sessionId, loadFeedback]);
+
+  const timerProgress = (() => {
+    const duration = Number(sessionData?.duration_seconds || 1);
+    const remaining = Number(remainingSeconds || 0);
+
+    return Math.max(0, Math.min(100, (remaining / duration) * 100));
+  })();
 
   const handleSendMessage = async (e) => {
     e.preventDefault();
 
     if (!content.trim()) return;
-    if (!sessionData || sessionData.status === "completed") return;
+
+    if (!sessionData || status !== "active" || remainingSeconds <= 0) {
+      setError("La session est terminée. Tu ne peux plus envoyer de message.");
+      return;
+    }
 
     try {
       setSending(true);
       setError("");
       setSuccessMessage("");
+      setVoiceError("");
+      setVoiceSuccess("");
 
       const token = localStorage.getItem("token");
+
       if (!token) {
         router.replace("/auth/login");
         return;
       }
 
+      const currentContent = content.trim();
+
       const userMessage = {
         id: `temp-user-${Date.now()}`,
         session_id: sessionId,
         role: "user",
-        content: content.trim(),
+        content: currentContent,
         created_at: new Date().toISOString(),
       };
 
       setMessages((prev) => [...prev, userMessage]);
-      const currentContent = content.trim();
       setContent("");
 
-      const assistantMessage = await sendSessionMessage(
-        token,
-        sessionId,
-        currentContent
-      );
+      const result = await sendSessionMessage(token, sessionId, currentContent);
 
-      setMessages((prev) => [...prev, assistantMessage]);
+      if (result?.messages) {
+        setSessionData(result);
+        setMessages(result.messages || []);
+        setRemainingSeconds(calculateRemainingSeconds(result));
+
+        if (result?.feedback) {
+          setFeedback(result.feedback);
+        }
+      } else {
+        setMessages((prev) => [...prev, result]);
+      }
+
       setSuccessMessage("Message envoyé avec succès.");
+
+      if (result?.status === "completed" || result?.is_expired) {
+        setSessionData((prev) =>
+          prev
+            ? {
+                ...prev,
+                status: "completed",
+                is_expired: true,
+                remaining_seconds: 0,
+              }
+            : prev
+        );
+
+        setRemainingSeconds(0);
+
+        if (!result?.feedback) {
+          await loadFeedback(token, sessionId);
+        }
+      }
     } catch (err) {
-      setError(err.message || "Impossible d'envoyer le message");
+      if (err?.message === "SESSION_EXPIRED") {
+        setSessionData((prev) =>
+          prev
+            ? {
+                ...prev,
+                status: "completed",
+                is_expired: true,
+                remaining_seconds: 0,
+                completion_reason: "timeout",
+              }
+            : prev
+        );
+
+        setRemainingSeconds(0);
+        setError("Temps terminé. La session a été clôturée automatiquement.");
+
+        const token = localStorage.getItem("token");
+        if (token && sessionId) {
+          await loadFeedback(token, sessionId);
+        }
+
+        return;
+      }
+
+      setError(err?.message || "Impossible d'envoyer le message");
     } finally {
       setSending(false);
     }
   };
 
   const handleCompleteSession = async () => {
-    if (!sessionData || sessionData.status === "completed") return;
+    if (!sessionData || isCompleted) return;
 
     try {
       setCompleting(true);
       setError("");
       setSuccessMessage("");
+      setVoiceError("");
+      setVoiceSuccess("");
 
       const token = localStorage.getItem("token");
+
       if (!token) {
         router.replace("/auth/login");
         return;
       }
 
       await completeSession(token, sessionId);
+
       const updatedSession = await getSessionById(token, sessionId);
 
       setSessionData(updatedSession);
       setMessages(updatedSession?.messages || []);
+      setRemainingSeconds(calculateRemainingSeconds(updatedSession));
       setSuccessMessage("Session terminée avec succès.");
+
+      if (updatedSession?.feedback) {
+        setFeedback(updatedSession.feedback);
+      } else {
+        await loadFeedback(token, sessionId);
+      }
     } catch (err) {
-      setError(err.message || "Impossible de terminer la session");
+      setError(err?.message || "Impossible de terminer la session");
     } finally {
       setCompleting(false);
     }
@@ -127,19 +368,90 @@ export default function SessionPage() {
     try {
       setVoiceError("");
       setVoiceSuccess("");
+      setError("");
+      setSuccessMessage("");
 
-      const fakeTranscription = `Transcription simulée reçue pour : ${file.name}`;
-      setVoiceTranscription(fakeTranscription);
-      setVoiceSuccess("Message vocal reçu avec succès.");
+      const token = localStorage.getItem("token");
+
+      if (!token) {
+        router.replace("/auth/login");
+        return;
+      }
+
+      if (!sessionData || status !== "active" || remainingSeconds <= 0) {
+        throw new Error(
+          "Cette session est terminée. Tu ne peux plus envoyer de message vocal."
+        );
+      }
+
+      const result = await sendVoiceMessage(token, sessionId, file);
+
+      setVoiceTranscription(result.transcription || "");
+
+      setMessages((prev) => [
+        ...prev,
+        result.user_message,
+        result.assistant_message,
+      ]);
+
+      setSessionData((prev) => {
+        if (!prev) return prev;
+
+        return {
+          ...prev,
+          status: result.session_status || prev.status,
+          duration_seconds: result.duration_seconds ?? prev.duration_seconds,
+          started_at: result.started_at ?? prev.started_at,
+          expires_at: result.expires_at ?? prev.expires_at,
+          completed_at: result.completed_at ?? prev.completed_at,
+          completion_reason:
+            result.completion_reason ?? prev.completion_reason,
+          remaining_seconds:
+            result.remaining_seconds ?? prev.remaining_seconds,
+          is_expired: result.is_expired ?? prev.is_expired,
+        };
+      });
+
+      if (typeof result.remaining_seconds === "number") {
+        setRemainingSeconds(result.remaining_seconds);
+      }
+
+      if (result.session_status === "completed" || result.is_expired) {
+        setRemainingSeconds(0);
+        await loadFeedback(token, sessionId);
+      }
+
+      setVoiceSuccess("Message vocal envoyé avec succès.");
     } catch (err) {
-      setVoiceError(
-        err?.message || "Impossible de traiter le message vocal."
-      );
+      if (err?.message === "SESSION_EXPIRED") {
+        setSessionData((prev) =>
+          prev
+            ? {
+                ...prev,
+                status: "completed",
+                is_expired: true,
+                remaining_seconds: 0,
+                completion_reason: "timeout",
+              }
+            : prev
+        );
+
+        setRemainingSeconds(0);
+        setVoiceError(
+          "Temps terminé. La session a été clôturée automatiquement."
+        );
+
+        const token = localStorage.getItem("token");
+        if (token && sessionId) {
+          await loadFeedback(token, sessionId);
+        }
+
+        return;
+      }
+
+      setVoiceError(err?.message || "Impossible de traiter le message vocal.");
     }
   }
-
-  const status = sessionData?.status || "unknown";
-  const isCompleted = status === "completed";
 
   return (
     <div className="page-root">
@@ -186,6 +498,20 @@ export default function SessionPage() {
                     >
                       {isCompleted ? "completed" : "active"}
                     </span>
+
+                    <span
+                      className={`timer-pill ${
+                        isCompleted
+                          ? "finished"
+                          : remainingSeconds <= 60
+                          ? "danger"
+                          : "normal"
+                      }`}
+                    >
+                      {isCompleted
+                        ? "Temps terminé"
+                        : formatTimer(remainingSeconds)}
+                    </span>
                   </div>
                 </div>
 
@@ -208,6 +534,35 @@ export default function SessionPage() {
                   )}
                 </div>
               </div>
+
+              <div className="timer-box">
+                <div className="timer-top">
+                  <div>
+                    <p className="timer-title">Temps de simulation</p>
+                    <p className="timer-subtitle">
+                      Quand le temps arrive à zéro, la session se termine
+                      automatiquement.
+                    </p>
+                  </div>
+
+                  <strong className="timer-value">
+                    {isCompleted ? "00:00" : formatTimer(remainingSeconds)}
+                  </strong>
+                </div>
+
+                <div className="timer-track">
+                  <div
+                    className={`timer-progress ${
+                      isCompleted
+                        ? "finished"
+                        : remainingSeconds <= 60
+                        ? "danger"
+                        : "normal"
+                    }`}
+                    style={{ width: `${timerProgress}%` }}
+                  />
+                </div>
+              </div>
             </div>
 
             <div className="session-chat-card">
@@ -224,7 +579,9 @@ export default function SessionPage() {
                     return (
                       <div
                         key={message.id}
-                        className={`message-row ${isUser ? "user" : "assistant"}`}
+                        className={`message-row ${
+                          isUser ? "user" : "assistant"
+                        }`}
                       >
                         <div
                           className={`message-bubble ${
@@ -232,7 +589,9 @@ export default function SessionPage() {
                           }`}
                         >
                           <strong>{isUser ? "Vous" : "Assistant"}</strong>
-                          <div className="message-content">{message.content}</div>
+                          <div className="message-content">
+                            {message.content}
+                          </div>
                         </div>
                       </div>
                     );
@@ -241,8 +600,124 @@ export default function SessionPage() {
               </div>
 
               {isCompleted && (
-                <div className="completed-box">
-                  Cette session est terminée.
+                <div className="completed-box completed-box-with-action">
+                  <span>
+                    Cette session est terminée. Les messages texte et vocaux
+                    sont désactivés.
+                  </span>
+
+                  <button
+                    type="button"
+                    onClick={() =>
+                      router.push(`/session/${sessionId}/performance`)
+                    }
+                    className="performance-btn"
+                  >
+                    Voir performance détaillée
+                  </button>
+                </div>
+              )}
+
+              {isCompleted && (
+                <div className="feedback-card">
+                  <div className="feedback-header">
+                    <div>
+                      <h2 className="feedback-title">
+                        Résultat de la simulation
+                      </h2>
+                      <p className="feedback-subtitle">
+                        Évaluation générée automatiquement après la fin de la
+                        session.
+                      </p>
+                    </div>
+
+                    {feedback?.overall_score !== null &&
+                      feedback?.overall_score !== undefined && (
+                        <div className="overall-score">
+                          <span>Score global</span>
+                          <strong>
+                            {formatScore(feedback.overall_score)}/10
+                          </strong>
+                        </div>
+                      )}
+                  </div>
+
+                  {feedbackLoading && (
+                    <div className="feedback-loading">
+                      Génération du feedback en cours...
+                    </div>
+                  )}
+
+                  {feedbackError && !feedbackLoading && (
+                    <div className="feedback-error">{feedbackError}</div>
+                  )}
+
+                  {feedback && !feedbackLoading && (
+                    <>
+                      <div className="score-grid">
+                        <div className="score-item">
+                          <span>Communication</span>
+                          <strong>
+                            {formatScore(feedback.communication_score)}/10
+                          </strong>
+                        </div>
+
+                        <div className="score-item">
+                          <span>Confiance</span>
+                          <strong>
+                            {formatScore(feedback.confidence_score)}/10
+                          </strong>
+                        </div>
+
+                        <div className="score-item">
+                          <span>Clarté</span>
+                          <strong>
+                            {formatScore(feedback.clarity_score)}/10
+                          </strong>
+                        </div>
+
+                        <div className="score-item">
+                          <span>Pertinence</span>
+                          <strong>
+                            {formatScore(feedback.relevance_score)}/10
+                          </strong>
+                        </div>
+
+                        <div className="score-item">
+                          <span>Professionnalisme</span>
+                          <strong>
+                            {formatScore(feedback.professionalism_score)}/10
+                          </strong>
+                        </div>
+                      </div>
+
+                      <div className="feedback-text-grid">
+                        <div className="feedback-text-box">
+                          <h3>Points forts</h3>
+                          <p>
+                            {feedback.strengths ||
+                              "Aucun point fort détecté pour le moment."}
+                          </p>
+                        </div>
+
+                        <div className="feedback-text-box">
+                          <h3>Points à améliorer</h3>
+                          <p>
+                            {feedback.weaknesses ||
+                              "Aucun point faible détecté pour le moment."}
+                          </p>
+                        </div>
+
+                        <div className="feedback-text-box full">
+                          <h3>Conseil final</h3>
+                          <p>
+                            {feedback.final_advice ||
+                              "Aucun conseil disponible pour le moment."}
+                          </p>
+                        </div>
+                      </div>
+                    </>
+                  )}
                 </div>
               )}
 
@@ -276,7 +751,9 @@ export default function SessionPage() {
                   transcription={voiceTranscription}
                 />
 
-                {voiceError && <div className="voice-error-box">{voiceError}</div>}
+                {voiceError && (
+                  <div className="voice-error-box">{voiceError}</div>
+                )}
               </section>
             </div>
           </>
@@ -391,7 +868,8 @@ export default function SessionPage() {
           font-weight: 600;
         }
 
-        .status-pill {
+        .status-pill,
+        .timer-pill {
           padding: 6px 10px;
           border-radius: 999px;
           font-size: 0.85rem;
@@ -406,6 +884,21 @@ export default function SessionPage() {
         .status-pill.active {
           background: #fef3c7;
           color: #92400e;
+        }
+
+        .timer-pill.normal {
+          background: #dbeafe;
+          color: #1d4ed8;
+        }
+
+        .timer-pill.danger {
+          background: #ffedd5;
+          color: #c2410c;
+        }
+
+        .timer-pill.finished {
+          background: #fee2e2;
+          color: #991b1b;
         }
 
         .session-actions {
@@ -440,6 +933,66 @@ export default function SessionPage() {
         .send-button:disabled {
           opacity: 0.7;
           cursor: not-allowed;
+        }
+
+        .timer-box {
+          margin-top: 18px;
+          background: #f8fafc;
+          border: 1px solid #e2e8f0;
+          border-radius: 20px;
+          padding: 16px;
+        }
+
+        .timer-top {
+          display: flex;
+          justify-content: space-between;
+          gap: 16px;
+          align-items: center;
+          margin-bottom: 12px;
+        }
+
+        .timer-title {
+          margin: 0;
+          color: #0f172a;
+          font-weight: 800;
+        }
+
+        .timer-subtitle {
+          margin: 4px 0 0;
+          color: #64748b;
+          font-size: 13px;
+          line-height: 1.5;
+        }
+
+        .timer-value {
+          color: #0f172a;
+          font-size: 24px;
+          white-space: nowrap;
+        }
+
+        .timer-track {
+          height: 10px;
+          overflow: hidden;
+          border-radius: 999px;
+          background: #e2e8f0;
+        }
+
+        .timer-progress {
+          height: 100%;
+          border-radius: 999px;
+          transition: width 0.4s ease;
+        }
+
+        .timer-progress.normal {
+          background: #2563eb;
+        }
+
+        .timer-progress.danger {
+          background: #f97316;
+        }
+
+        .timer-progress.finished {
+          background: #ef4444;
         }
 
         .session-chat-card {
@@ -499,6 +1052,159 @@ export default function SessionPage() {
           padding: 14px 16px;
           margin-bottom: 16px;
           font-weight: 600;
+        }
+
+        .completed-box-with-action {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 16px;
+          flex-wrap: wrap;
+        }
+
+        .performance-btn {
+          border: none;
+          border-radius: 14px;
+          background: #0f172a;
+          color: #ffffff;
+          padding: 10px 16px;
+          font-weight: 800;
+          cursor: pointer;
+        }
+
+        .performance-btn:hover {
+          opacity: 0.9;
+        }
+
+        .feedback-card {
+          background: #ffffff;
+          border: 1px solid #dbeafe;
+          border-radius: 24px;
+          padding: 20px;
+          margin-bottom: 24px;
+          box-shadow: 0 14px 30px rgba(15, 23, 42, 0.06);
+        }
+
+        .feedback-header {
+          display: flex;
+          justify-content: space-between;
+          align-items: flex-start;
+          gap: 16px;
+          flex-wrap: wrap;
+          margin-bottom: 18px;
+        }
+
+        .feedback-title {
+          margin: 0;
+          color: #0f172a;
+          font-size: 24px;
+          font-weight: 800;
+        }
+
+        .feedback-subtitle {
+          margin: 6px 0 0;
+          color: #64748b;
+          font-size: 14px;
+          line-height: 1.6;
+        }
+
+        .overall-score {
+          background: #eff6ff;
+          border: 1px solid #bfdbfe;
+          color: #1d4ed8;
+          border-radius: 18px;
+          padding: 12px 16px;
+          min-width: 140px;
+          text-align: center;
+        }
+
+        .overall-score span {
+          display: block;
+          font-size: 12px;
+          font-weight: 700;
+          margin-bottom: 4px;
+        }
+
+        .overall-score strong {
+          font-size: 24px;
+          font-weight: 900;
+        }
+
+        .feedback-loading {
+          background: #f8fafc;
+          border: 1px solid #e2e8f0;
+          color: #475569;
+          border-radius: 16px;
+          padding: 14px 16px;
+          font-weight: 600;
+        }
+
+        .feedback-error {
+          background: #fee2e2;
+          border: 1px solid #fecaca;
+          color: #991b1b;
+          border-radius: 16px;
+          padding: 14px 16px;
+          font-weight: 600;
+        }
+
+        .score-grid {
+          display: grid;
+          grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+          gap: 12px;
+          margin-bottom: 18px;
+        }
+
+        .score-item {
+          background: #f8fafc;
+          border: 1px solid #e2e8f0;
+          border-radius: 16px;
+          padding: 14px;
+        }
+
+        .score-item span {
+          display: block;
+          color: #64748b;
+          font-size: 13px;
+          font-weight: 700;
+          margin-bottom: 6px;
+        }
+
+        .score-item strong {
+          color: #0f172a;
+          font-size: 22px;
+          font-weight: 900;
+        }
+
+        .feedback-text-grid {
+          display: grid;
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+          gap: 14px;
+        }
+
+        .feedback-text-box {
+          background: #f8fafc;
+          border: 1px solid #e2e8f0;
+          border-radius: 18px;
+          padding: 16px;
+        }
+
+        .feedback-text-box.full {
+          grid-column: 1 / -1;
+        }
+
+        .feedback-text-box h3 {
+          margin: 0 0 8px;
+          color: #0f172a;
+          font-size: 16px;
+          font-weight: 800;
+        }
+
+        .feedback-text-box p {
+          margin: 0;
+          color: #475569;
+          line-height: 1.7;
+          white-space: pre-wrap;
         }
 
         .message-form {
@@ -578,6 +1284,11 @@ export default function SessionPage() {
             font-size: 30px;
           }
 
+          .timer-top {
+            flex-direction: column;
+            align-items: flex-start;
+          }
+
           .message-form {
             flex-direction: column;
             align-items: stretch;
@@ -589,12 +1300,21 @@ export default function SessionPage() {
 
           .send-button,
           .secondary-btn,
-          .complete-btn {
+          .complete-btn,
+          .performance-btn {
             width: 100%;
           }
 
           .message-bubble {
             max-width: 100%;
+          }
+
+          .feedback-text-grid {
+            grid-template-columns: 1fr;
+          }
+
+          .overall-score {
+            width: 100%;
           }
         }
       `}</style>
