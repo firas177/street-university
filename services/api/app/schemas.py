@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Optional, List
+from typing import Optional, List, Dict, Any
 
 from pydantic import BaseModel, EmailStr, Field
 
@@ -136,17 +136,22 @@ class SessionStatusUpdateOut(BaseModel):
 class MessageIn(BaseModel):
     content: str
 
-
 class MessageOut(BaseModel):
     id: str
     session_id: str
     role: str
     content: str
+
+    sentiment_label: Optional[str] = None
+    sentiment_score: Optional[float] = None
+    sentiment_confidence: Optional[float] = None
+    sentiment_source: Optional[str] = None
+    sentiment_model: Optional[str] = None
+
     created_at: datetime
 
     class Config:
         from_attributes = True
-
 
 # =========================
 # Feedback
@@ -167,11 +172,15 @@ class SessionFeedbackOut(BaseModel):
     strengths: Optional[str] = None
     weaknesses: Optional[str] = None
     final_advice: Optional[str] = None
+
+    voice_sentiment_label: Optional[str] = None
+    voice_sentiment_score: Optional[float] = None
+    voice_sentiment_summary: Optional[str] = None
+
     created_at: datetime
 
     class Config:
         from_attributes = True
-
 
 class SessionDetailOut(BaseModel):
     id: str
@@ -231,5 +240,38 @@ class VoiceMessageOut(BaseModel):
     remaining_seconds: Optional[int] = None
     is_expired: Optional[bool] = None
 
+    sentiment_label: Optional[str] = None
+    sentiment_score: Optional[float] = None
+    sentiment_confidence: Optional[float] = None
+    sentiment_summary: Optional[str] = None
+    sentiment_model: Optional[str] = None
+
     user_message: MessageOut
     assistant_message: MessageOut
+
+
+
+
+
+class UserCVOut(BaseModel):
+    id: str
+    user_id: str
+    filename: Optional[str] = None
+    content_type: Optional[str] = None
+    extracted_text: str
+    structured_profile: Optional[str] = None
+    profile_generated_at: Optional[datetime] = None
+    created_at: datetime
+    updated_at: datetime
+
+    class Config:
+        from_attributes = True
+
+        
+
+class UserCVProfileOut(BaseModel):
+    cv_id: str
+    user_id: str
+    filename: Optional[str] = None
+    profile_generated_at: Optional[datetime] = None
+    profile: Dict[str, Any]

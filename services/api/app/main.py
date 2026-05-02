@@ -3,6 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session, joinedload
 from datetime import datetime, timezone, timedelta
 import re
+import json
 
 from .audio_service import transcribe_uploaded_audio, AudioTranscriptionError
 from .db import engine, Base, get_db
@@ -12,7 +13,14 @@ from .ai_service import generate_ai_reply, generate_session_feedback
 from .schemas import UserLogin
 from . import models, schemas, auth
 
+from .cv_service import (
+    validate_cv_file,
+    extract_text_from_pdf_bytes,
+    build_structured_cv_profile,
+    CVExtractionError,
+)
 
+from .sentiment_service import analyze_text_sentiment, aggregate_voice_sentiments
 # ============================================================
 # TIMER HELPERS
 # ============================================================
@@ -37,10 +45,6 @@ def safe_duration_seconds(value):
 
 
 def ensure_session_timer(session, db: Session):
-    """
-    Si une ancienne session active n'a pas started_at / expires_at,
-    on initialise le timer maintenant.
-    """
     if not session:
         return session
 
@@ -99,9 +103,13 @@ def message_to_dict(message):
         "session_id": message.session_id,
         "role": message.role,
         "content": message.content,
+        "sentiment_label": getattr(message, "sentiment_label", None),
+        "sentiment_score": getattr(message, "sentiment_score", None),
+        "sentiment_confidence": getattr(message, "sentiment_confidence", None),
+        "sentiment_source": getattr(message, "sentiment_source", None),
+        "sentiment_model": getattr(message, "sentiment_model", None),
         "created_at": message.created_at,
     }
-
 
 def scenario_to_dict(scenario):
     if not scenario:
@@ -133,9 +141,11 @@ def feedback_to_dict(feedback):
         "strengths": feedback.strengths,
         "weaknesses": feedback.weaknesses,
         "final_advice": feedback.final_advice,
+        "voice_sentiment_label": getattr(feedback, "voice_sentiment_label", None),
+        "voice_sentiment_score": getattr(feedback, "voice_sentiment_score", None),
+        "voice_sentiment_summary": getattr(feedback, "voice_sentiment_summary", None),
         "created_at": feedback.created_at,
     }
-
 
 def serialize_session(session):
     remaining = calculate_remaining_seconds(session)
@@ -164,6 +174,7 @@ def serialize_session(session):
 
 def _is_exit_intent(text: str) -> bool:
     value = (text or "").strip().lower()
+
     patterns = [
         r"\bje veux quitter\b",
         r"\bje veux partir\b",
@@ -174,7 +185,98 @@ def _is_exit_intent(text: str) -> bool:
         r"\bquit\b",
         r"\bexit\b",
     ]
+
     return any(re.search(pattern, value, flags=re.IGNORECASE) for pattern in patterns)
+
+def clamp_score(value, minimum=0, maximum=10):
+    try:
+        value = float(value)
+    except Exception:
+        value = 0
+
+    return round(max(minimum, min(maximum, value)), 1)
+
+
+def apply_voice_sentiment_to_feedback(feedback_data: dict, voice_sentiment: dict) -> dict:
+    """
+    Ajuste légèrement le feedback final avec l'analyse sentimentale vocale.
+
+    Important:
+    - Le sentiment ne remplace pas l'évaluation IA.
+    - Il influence surtout confiance, communication et professionnalisme.
+    - Un sentiment positif ne doit pas faire baisser le score global.
+    - Si aucun sentiment vocal n'existe, on garde le feedback original.
+    """
+
+    if not voice_sentiment:
+        return feedback_data
+
+    sentiment_score = voice_sentiment.get("score")
+
+    if sentiment_score is None:
+        return feedback_data
+
+    try:
+        sentiment_score = float(sentiment_score)
+    except Exception:
+        return feedback_data
+
+    adjusted = dict(feedback_data)
+
+    communication = clamp_score(adjusted.get("communication_score", 0))
+    confidence = clamp_score(adjusted.get("confidence_score", 0))
+    clarity = clamp_score(adjusted.get("clarity_score", 0))
+    relevance = clamp_score(adjusted.get("relevance_score", 0))
+    professionalism = clamp_score(adjusted.get("professionalism_score", 0))
+
+    # Influence modérée du sentiment vocal
+    confidence = clamp_score(confidence + sentiment_score * 1.0)
+    communication = clamp_score(communication + sentiment_score * 0.5)
+    professionalism = clamp_score(professionalism + sentiment_score * 0.3)
+
+    # Recalcul pondéré du score global
+    weighted_overall = (
+        communication * 0.20
+        + confidence * 0.25
+        + clarity * 0.20
+        + relevance * 0.25
+        + professionalism * 0.10
+    )
+
+    original_overall = clamp_score(adjusted.get("overall_score", 0))
+    weighted_overall = clamp_score(weighted_overall)
+
+    # Si le sentiment est positif, il ne doit jamais diminuer le score global.
+    # Si le sentiment est négatif, il peut diminuer légèrement le score global.
+    if sentiment_score > 0:
+        final_overall = max(original_overall, weighted_overall)
+    else:
+        final_overall = weighted_overall
+
+    adjusted["communication_score"] = communication
+    adjusted["confidence_score"] = confidence
+    adjusted["clarity_score"] = clarity
+    adjusted["relevance_score"] = relevance
+    adjusted["professionalism_score"] = professionalism
+    adjusted["overall_score"] = final_overall
+
+    sentiment_label = voice_sentiment.get("label")
+
+    if sentiment_label:
+        old_advice = adjusted.get("final_advice") or ""
+
+        adjusted["final_advice"] = (
+            old_advice
+            + "\n\nAnalyse vocale : le sentiment global détecté est "
+            + f"{sentiment_label}. Cette information a été utilisée pour ajuster légèrement "
+            + "les scores liés à la confiance, la communication et le professionnalisme."
+        ).strip()
+
+    return adjusted
+
+
+
+
 
 
 def _finalize_session_with_feedback(
@@ -184,18 +286,22 @@ def _finalize_session_with_feedback(
 ):
     """
     Termine une session + génère le feedback si pas encore généré.
+
     reason:
     - manual
     - timeout
     - exit_intent
     """
+
     if session.status != "completed":
         session.status = "completed"
         session.completed_at = now_utc()
         session.completion_reason = reason
+
         db.add(session)
         db.commit()
         db.refresh(session)
+
     else:
         if session.completed_at is None:
             session.completed_at = now_utc()
@@ -223,13 +329,34 @@ def _finalize_session_with_feedback(
         .all()
     )
 
+    voice_sentiment = aggregate_voice_sentiments(session_messages)
+
     messages_payload = [
         {"role": msg.role, "content": msg.content}
         for msg in session_messages
         if msg.content
     ]
 
+    if voice_sentiment.get("label"):
+        messages_payload.append(
+            {
+                "role": "system",
+                "content": (
+                    "Résumé d'analyse sentimentale des messages vocaux utilisateur : "
+                    f"{voice_sentiment.get('summary')} "
+                    "Utilise cette information pour enrichir l'évaluation de la confiance, "
+                    "de la clarté et du professionnalisme. "
+                    "Ne pénalise pas automatiquement un sentiment négatif si la réponse reste pertinente."
+                ),
+            }
+        )
+
     feedback_data = generate_session_feedback(messages_payload)
+
+    feedback_data = apply_voice_sentiment_to_feedback(
+        feedback_data,
+        voice_sentiment,
+    )
 
     feedback = models.SessionFeedback(
         session_id=session.id,
@@ -243,6 +370,9 @@ def _finalize_session_with_feedback(
         strengths=feedback_data.get("strengths"),
         weaknesses=feedback_data.get("weaknesses"),
         final_advice=feedback_data.get("final_advice"),
+        voice_sentiment_label=voice_sentiment.get("label"),
+        voice_sentiment_score=voice_sentiment.get("score"),
+        voice_sentiment_summary=voice_sentiment.get("summary"),
     )
 
     db.add(feedback)
@@ -254,9 +384,6 @@ def _finalize_session_with_feedback(
 
 
 def auto_complete_if_expired(session, db: Session):
-    """
-    Si le timer est fini, termine automatiquement la session.
-    """
     if not session:
         return session
 
@@ -270,6 +397,148 @@ def auto_complete_if_expired(session, db: Session):
         )
 
     return session
+
+
+# ============================================================
+# CV + AI HELPERS
+# ============================================================
+
+def get_user_cv_profile(db: Session, user_id: str):
+    user_cv = (
+        db.query(models.UserCV)
+        .filter(models.UserCV.user_id == user_id)
+        .order_by(models.UserCV.created_at.desc())
+        .first()
+    )
+
+    if not user_cv:
+        return None
+
+    if not user_cv.structured_profile:
+        return None
+
+    try:
+        return json.loads(user_cv.structured_profile)
+    except Exception:
+        return None
+
+
+def flatten_cv_skills(profile: dict) -> list[str]:
+    technical_skills = profile.get("technical_skills") or {}
+    skills = []
+
+    if isinstance(technical_skills, dict):
+        for values in technical_skills.values():
+            if isinstance(values, list):
+                skills.extend(values)
+
+    cleaned = []
+
+    for skill in skills:
+        if skill and skill not in cleaned:
+            cleaned.append(skill)
+
+    return cleaned
+
+
+def build_cv_context_for_ai(profile: dict | None) -> str:
+    if not profile:
+        return ""
+
+    summary = profile.get("professional_summary") or ""
+    education = profile.get("education") or []
+    experience = profile.get("experience") or []
+    projects = profile.get("projects") or []
+    certifications = profile.get("certifications") or []
+    languages = profile.get("languages") or []
+    skills = flatten_cv_skills(profile)
+
+    return f"""
+PROFIL CV DU CANDIDAT DISPONIBLE :
+
+Résumé professionnel :
+{summary}
+
+Formation :
+{education}
+
+Expériences :
+{experience}
+
+Projets :
+{projects}
+
+Compétences techniques détectées :
+{skills}
+
+Certifications :
+{certifications}
+
+Langues :
+{languages}
+
+CONSIGNES IMPORTANTES :
+- Utilise ce CV pour poser des questions précises et personnalisées.
+- Ne pose pas seulement des questions générales.
+- Pose une seule question à la fois.
+- Vérifie si le candidat comprend vraiment ce qu’il a écrit dans son CV.
+- Demande-lui d’expliquer ses projets, ses choix techniques, son rôle, ses difficultés et ses résultats.
+- Ne donne pas les réponses à sa place.
+- Si une information n’est pas dans le CV, ne l’invente pas.
+- Si le candidat donne une réponse vague, demande une clarification concrète.
+- Si aucun CV n’est disponible, fais une simulation normale.
+""".strip()
+
+
+def build_system_prompt_with_optional_cv(
+    base_system_prompt: str,
+    cv_profile: dict | None,
+) -> str:
+    cv_context = build_cv_context_for_ai(cv_profile)
+
+    if not cv_context:
+        return base_system_prompt
+
+    return f"""
+{base_system_prompt}
+
+{cv_context}
+""".strip()
+
+
+def build_first_prompt_with_optional_cv(cv_profile: dict | None) -> str:
+    if cv_profile:
+        return (
+            "Commence immédiatement la simulation. "
+            "Le candidat a fourni un CV. "
+            "Analyse son profil et pose une première question spécifique basée sur un projet, "
+            "une compétence technique, une expérience, une formation ou une certification mentionnée dans son CV. "
+            "Ne pose pas une question générale si tu peux poser une question personnalisée. "
+            "Ne donne pas la réponse. "
+            "Une seule question à la fois."
+        )
+
+    return (
+        "Commence immédiatement la simulation. "
+        "Présente brièvement le contexte puis pose une première question claire. "
+        "Ne donne pas la réponse. "
+        "Une seule question à la fois."
+    )
+
+
+def get_enhanced_system_prompt_for_user(
+    db: Session,
+    user_id: str,
+    base_system_prompt: str,
+) -> tuple[str, dict | None]:
+    cv_profile = get_user_cv_profile(db, user_id)
+
+    enhanced_system_prompt = build_system_prompt_with_optional_cv(
+        base_system_prompt,
+        cv_profile,
+    )
+
+    return enhanced_system_prompt, cv_profile
 
 
 # ============================================================
@@ -317,6 +586,7 @@ def register(user: schemas.UserCreate, db: Session = Depends(get_db)):
         raise HTTPException(status_code=400, detail="Email déjà utilisé")
 
     new_user = auth.create_user(db, user)
+
     return new_user
 
 
@@ -361,6 +631,185 @@ def me(current_user=Depends(get_current_user)):
 @app.get("/admin/test")
 def admin_test(current_user=Depends(require_roles("admin"))):
     return {"message": f"Bienvenue admin {current_user.email}"}
+
+
+# ============================================================
+# CV ROUTES
+# ============================================================
+
+@app.post("/me/cv/upload", response_model=schemas.UserCVOut)
+async def upload_my_cv(
+    cv: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user),
+):
+    file_bytes = await cv.read()
+
+    try:
+        validate_cv_file(
+            filename=cv.filename,
+            content_type=cv.content_type,
+            file_bytes=file_bytes,
+        )
+
+        extracted_text = extract_text_from_pdf_bytes(file_bytes)
+
+    except CVExtractionError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+
+    existing_cv = (
+        db.query(models.UserCV)
+        .filter(models.UserCV.user_id == current_user.id)
+        .order_by(models.UserCV.created_at.desc())
+        .first()
+    )
+
+    if existing_cv:
+        existing_cv.filename = cv.filename
+        existing_cv.content_type = cv.content_type
+        existing_cv.extracted_text = extracted_text
+        existing_cv.structured_profile = None
+        existing_cv.profile_generated_at = None
+        existing_cv.updated_at = now_utc()
+
+        db.add(existing_cv)
+        db.commit()
+        db.refresh(existing_cv)
+
+        return existing_cv
+
+    user_cv = models.UserCV(
+        user_id=current_user.id,
+        filename=cv.filename,
+        content_type=cv.content_type,
+        extracted_text=extracted_text,
+        structured_profile=None,
+        profile_generated_at=None,
+        updated_at=now_utc(),
+    )
+
+    db.add(user_cv)
+    db.commit()
+    db.refresh(user_cv)
+
+    return user_cv
+
+
+@app.get("/me/cv", response_model=schemas.UserCVOut)
+def get_my_cv(
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user),
+):
+    user_cv = (
+        db.query(models.UserCV)
+        .filter(models.UserCV.user_id == current_user.id)
+        .order_by(models.UserCV.created_at.desc())
+        .first()
+    )
+
+    if not user_cv:
+        raise HTTPException(status_code=404, detail="Aucun CV trouvé.")
+
+    return user_cv
+
+
+@app.post("/me/cv/structure", response_model=schemas.UserCVProfileOut)
+def structure_my_cv(
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user),
+):
+    user_cv = (
+        db.query(models.UserCV)
+        .filter(models.UserCV.user_id == current_user.id)
+        .order_by(models.UserCV.created_at.desc())
+        .first()
+    )
+
+    if not user_cv:
+        raise HTTPException(status_code=404, detail="Aucun CV trouvé.")
+
+    if not user_cv.extracted_text:
+        raise HTTPException(
+            status_code=400,
+            detail="Aucun texte extrait du CV.",
+        )
+
+    profile = build_structured_cv_profile(user_cv.extracted_text)
+
+    user_cv.structured_profile = json.dumps(profile, ensure_ascii=False)
+    user_cv.profile_generated_at = now_utc()
+    user_cv.updated_at = now_utc()
+
+    db.add(user_cv)
+    db.commit()
+    db.refresh(user_cv)
+
+    return {
+        "cv_id": user_cv.id,
+        "user_id": user_cv.user_id,
+        "filename": user_cv.filename,
+        "profile_generated_at": user_cv.profile_generated_at,
+        "profile": profile,
+    }
+
+
+@app.get("/me/cv/profile", response_model=schemas.UserCVProfileOut)
+def get_my_cv_profile(
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user),
+):
+    user_cv = (
+        db.query(models.UserCV)
+        .filter(models.UserCV.user_id == current_user.id)
+        .order_by(models.UserCV.created_at.desc())
+        .first()
+    )
+
+    if not user_cv:
+        raise HTTPException(status_code=404, detail="Aucun CV trouvé.")
+
+    if not user_cv.structured_profile:
+        raise HTTPException(
+            status_code=404,
+            detail="Profil CV structuré non généré.",
+        )
+
+    try:
+        profile = json.loads(user_cv.structured_profile)
+    except Exception:
+        raise HTTPException(
+            status_code=500,
+            detail="Profil CV structuré invalide.",
+        )
+
+    return {
+        "cv_id": user_cv.id,
+        "user_id": user_cv.user_id,
+        "filename": user_cv.filename,
+        "profile_generated_at": user_cv.profile_generated_at,
+        "profile": profile,
+    }
+
+
+@app.delete("/me/cv")
+def delete_my_cv(
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user),
+):
+    user_cv = (
+        db.query(models.UserCV)
+        .filter(models.UserCV.user_id == current_user.id)
+        .order_by(models.UserCV.created_at.desc())
+        .first()
+    )
+
+    if not user_cv:
+        raise HTTPException(status_code=404, detail="Aucun CV trouvé.")
+
+    db.delete(user_cv)
+    db.commit()
+
+    return {"message": "CV supprimé avec succès."}
 
 
 # ============================================================
@@ -457,15 +906,16 @@ def start_session(
     db.commit()
     db.refresh(session)
 
-    first_prompt = (
-        "Commence immédiatement la simulation. "
-        "Présente brièvement le contexte puis pose une première question claire. "
-        "Ne donne pas la réponse. "
-        "Une seule question à la fois."
+    enhanced_system_prompt, cv_profile = get_enhanced_system_prompt_for_user(
+        db=db,
+        user_id=current_user.id,
+        base_system_prompt=scenario.system_prompt,
     )
 
+    first_prompt = build_first_prompt_with_optional_cv(cv_profile)
+
     assistant_text = generate_ai_reply(
-        system_prompt=scenario.system_prompt,
+        system_prompt=enhanced_system_prompt,
         history=[],
         user_message=first_prompt,
     )
@@ -654,8 +1104,14 @@ def send_message(
             "content": msg.content,
         })
 
+    enhanced_system_prompt, _cv_profile = get_enhanced_system_prompt_for_user(
+        db=db,
+        user_id=current_user.id,
+        base_system_prompt=scenario.system_prompt,
+    )
+
     assistant_text = generate_ai_reply(
-        system_prompt=scenario.system_prompt,
+        system_prompt=enhanced_system_prompt,
         history=history,
         user_message=payload.content,
     )
@@ -840,10 +1296,17 @@ async def send_voice_message(
     if not transcription:
         raise HTTPException(status_code=400, detail="Transcription vide.")
 
+    sentiment = analyze_text_sentiment(transcription)
+
     user_msg = models.Message(
         session_id=session.id,
         role="user",
         content=transcription,
+        sentiment_label=sentiment.get("label"),
+        sentiment_score=sentiment.get("score"),
+        sentiment_confidence=sentiment.get("confidence"),
+        sentiment_source="voice_transcription",
+        sentiment_model=sentiment.get("model"),
     )
 
     db.add(user_msg)
@@ -865,8 +1328,14 @@ async def send_voice_message(
             "content": msg.content,
         })
 
+    enhanced_system_prompt, _cv_profile = get_enhanced_system_prompt_for_user(
+        db=db,
+        user_id=current_user.id,
+        base_system_prompt=scenario.system_prompt,
+    )
+
     assistant_text = generate_ai_reply(
-        system_prompt=scenario.system_prompt,
+        system_prompt=enhanced_system_prompt,
         history=history,
         user_message=transcription,
     )
@@ -914,6 +1383,11 @@ async def send_voice_message(
         "completion_reason": session.completion_reason,
         "remaining_seconds": remaining,
         "is_expired": session.status != "active" or remaining <= 0,
+        "sentiment_label": sentiment.get("label"),
+        "sentiment_score": sentiment.get("score"),
+        "sentiment_confidence": sentiment.get("confidence"),
+        "sentiment_summary": sentiment.get("summary"),
+        "sentiment_model": sentiment.get("model"),
         "user_message": message_to_dict(user_msg),
         "assistant_message": message_to_dict(assistant_msg),
     }

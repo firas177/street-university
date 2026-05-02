@@ -19,8 +19,13 @@ function formatDate(value) {
 }
 
 function formatScore(value) {
-  if (value === null || value === undefined) return "0";
-  return String(value);
+  if (value === null || value === undefined || value === "") return "0";
+
+  const num = Number(value);
+
+  if (Number.isNaN(num)) return "0";
+
+  return Number.isInteger(num) ? String(num) : num.toFixed(1);
 }
 
 function formatDuration(seconds) {
@@ -39,6 +44,57 @@ function getReasonLabel(reason) {
   if (reason === "manual") return "Terminée manuellement";
   if (reason === "exit_intent") return "Arrêt demandé par l’utilisateur";
   return "Non précisée";
+}
+
+function formatSentimentLabel(value) {
+  if (!value) return "Non disponible";
+
+  const normalized = String(value).toLowerCase();
+
+  if (normalized === "positive") return "Positif";
+  if (normalized === "negative") return "Négatif";
+  if (normalized === "neutral") return "Neutre";
+
+  return value;
+}
+
+function formatVoiceScore(value) {
+  if (value === null || value === undefined || value === "") return "N/A";
+
+  const num = Number(value);
+
+  if (Number.isNaN(num)) return "N/A";
+
+  if (num > 0) return `+${num.toFixed(1)}`;
+  return num.toFixed(1);
+}
+
+function getSentimentClass(value) {
+  const normalized = String(value || "").toLowerCase();
+
+  if (normalized === "positive") return "positive";
+  if (normalized === "negative") return "negative";
+  if (normalized === "neutral") return "neutral";
+
+  return "empty";
+}
+
+function getSentimentImpactText(value) {
+  const normalized = String(value || "").toLowerCase();
+
+  if (normalized === "positive") {
+    return "Le sentiment positif a été utilisé pour renforcer légèrement les scores liés à la confiance, la communication et le professionnalisme.";
+  }
+
+  if (normalized === "negative") {
+    return "Le sentiment négatif peut indiquer du stress, de l’hésitation ou un manque de confiance. Il est utilisé avec prudence dans l’évaluation.";
+  }
+
+  if (normalized === "neutral") {
+    return "Le sentiment neutre indique une posture stable, sans signal émotionnel fortement positif ou négatif.";
+  }
+
+  return "Aucun signal vocal exploitable n’a été détecté pour cette session.";
 }
 
 export default function SessionPerformancePage() {
@@ -96,6 +152,9 @@ export default function SessionPerformancePage() {
   const assistantMessagesCount = messages.filter(
     (msg) => msg.role === "assistant"
   ).length;
+
+  const hasVoiceSentiment =
+    feedback?.voice_sentiment_label || feedback?.voice_sentiment_summary;
 
   return (
     <div className="page-root">
@@ -229,6 +288,70 @@ export default function SessionPerformancePage() {
             </section>
 
             {feedback && (
+              <section className="voice-analysis-card">
+                <div className="section-title">
+                  <p className="eyebrow">Analyse vocale</p>
+                  <h2>Sentiment vocal détecté</h2>
+                </div>
+
+                {hasVoiceSentiment ? (
+                  <div className="voice-layout">
+                    <div className="voice-main">
+                      <div
+                        className={`voice-badge ${getSentimentClass(
+                          feedback.voice_sentiment_label
+                        )}`}
+                      >
+                        {formatSentimentLabel(feedback.voice_sentiment_label)}
+                      </div>
+
+                      <div>
+                        <h3>Analyse sentimentale vocale</h3>
+                        <p>
+                          Cette analyse est basée sur la transcription des messages
+                          vocaux utilisateur. Elle complète le feedback IA sans
+                          remplacer l’évaluation du contenu.
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="voice-metrics">
+                      <div className="voice-metric-box">
+                        <span>Score sentiment</span>
+                        <strong>
+                          {formatVoiceScore(feedback.voice_sentiment_score)}
+                        </strong>
+                      </div>
+
+                      <div className="voice-metric-box">
+                        <span>Impact rating</span>
+                        <strong>Modéré</strong>
+                      </div>
+                    </div>
+
+                    <div className="voice-summary">
+                      <h4>Résumé</h4>
+                      <p>
+                        {feedback.voice_sentiment_summary ||
+                          "Résumé vocal non disponible."}
+                      </p>
+                    </div>
+
+                    <div className="voice-impact">
+                      <h4>Interprétation</h4>
+                      <p>{getSentimentImpactText(feedback.voice_sentiment_label)}</p>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="empty-box">
+                    Aucun message vocal analysé pour cette session. Envoyez un
+                    message vocal pendant une simulation pour voir cette analyse.
+                  </div>
+                )}
+              </section>
+            )}
+
+            {feedback && (
               <section className="analysis-grid">
                 <div className="analysis-card">
                   <h3>Points forts</h3>
@@ -268,6 +391,8 @@ export default function SessionPerformancePage() {
                 <div className="messages-list">
                   {messages.map((message) => {
                     const isUser = message.role === "user";
+                    const hasMessageSentiment =
+                      isUser && message.sentiment_label && message.sentiment_source;
 
                     return (
                       <div
@@ -280,6 +405,18 @@ export default function SessionPerformancePage() {
                           }`}
                         >
                           <strong>{isUser ? "Vous" : "Assistant"}</strong>
+
+                          {hasMessageSentiment && (
+                            <div
+                              className={`message-sentiment ${getSentimentClass(
+                                message.sentiment_label
+                              )}`}
+                            >
+                              Vocal : {formatSentimentLabel(message.sentiment_label)} ·{" "}
+                              {formatVoiceScore(message.sentiment_score)}
+                            </div>
+                          )}
+
                           <p>{message.content}</p>
                           <span>{formatDate(message.created_at)}</span>
                         </div>
@@ -326,7 +463,8 @@ export default function SessionPerformancePage() {
         .loading-card,
         .hero-card,
         .scores-card,
-        .conversation-card {
+        .conversation-card,
+        .voice-analysis-card {
           background: #ffffff;
           border: 1px solid #e2e8f0;
           border-radius: 28px;
@@ -450,7 +588,8 @@ export default function SessionPerformancePage() {
           font-weight: 900;
         }
 
-        .scores-card {
+        .scores-card,
+        .voice-analysis-card {
           margin-bottom: 20px;
         }
 
@@ -494,6 +633,113 @@ export default function SessionPerformancePage() {
           color: #475569;
           line-height: 1.6;
           margin: 10px 0 0;
+        }
+
+        .voice-layout {
+          display: grid;
+          gap: 18px;
+        }
+
+        .voice-main {
+          display: flex;
+          align-items: flex-start;
+          gap: 16px;
+          flex-wrap: wrap;
+        }
+
+        .voice-main h3 {
+          margin: 0 0 8px;
+          color: #0f172a;
+          font-size: 22px;
+          font-weight: 900;
+        }
+
+        .voice-main p {
+          margin: 0;
+          color: #475569;
+          line-height: 1.7;
+        }
+
+        .voice-badge {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          min-width: 110px;
+          padding: 10px 14px;
+          border-radius: 999px;
+          font-size: 14px;
+          font-weight: 950;
+          text-transform: uppercase;
+          letter-spacing: 0.04em;
+        }
+
+        .voice-badge.positive {
+          color: #166534;
+          background: #dcfce7;
+          border: 1px solid #86efac;
+        }
+
+        .voice-badge.negative {
+          color: #991b1b;
+          background: #fee2e2;
+          border: 1px solid #fca5a5;
+        }
+
+        .voice-badge.neutral {
+          color: #334155;
+          background: #f1f5f9;
+          border: 1px solid #cbd5e1;
+        }
+
+        .voice-badge.empty {
+          color: #64748b;
+          background: #f8fafc;
+          border: 1px solid #e2e8f0;
+        }
+
+        .voice-metrics {
+          display: grid;
+          grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+          gap: 14px;
+        }
+
+        .voice-metric-box,
+        .voice-summary,
+        .voice-impact {
+          background: #f8fafc;
+          border: 1px solid #e2e8f0;
+          border-radius: 20px;
+          padding: 18px;
+        }
+
+        .voice-metric-box span {
+          display: block;
+          color: #64748b;
+          font-weight: 900;
+          margin-bottom: 8px;
+          font-size: 13px;
+        }
+
+        .voice-metric-box strong {
+          color: #0f172a;
+          font-size: 28px;
+          font-weight: 950;
+        }
+
+        .voice-summary h4,
+        .voice-impact h4 {
+          margin: 0 0 8px;
+          color: #0f172a;
+          font-size: 18px;
+          font-weight: 900;
+        }
+
+        .voice-summary p,
+        .voice-impact p {
+          margin: 0;
+          color: #475569;
+          line-height: 1.75;
+          white-space: pre-wrap;
         }
 
         .analysis-grid {
@@ -576,6 +822,30 @@ export default function SessionPerformancePage() {
           border: 1px solid #e2e8f0;
         }
 
+        .message-sentiment {
+          width: fit-content;
+          margin-top: 8px;
+          border-radius: 999px;
+          padding: 6px 10px;
+          font-size: 12px;
+          font-weight: 900;
+        }
+
+        .message-sentiment.positive {
+          color: #166534;
+          background: #dcfce7;
+        }
+
+        .message-sentiment.negative {
+          color: #991b1b;
+          background: #fee2e2;
+        }
+
+        .message-sentiment.neutral {
+          color: #334155;
+          background: #e2e8f0;
+        }
+
         .message-bubble p {
           margin: 8px 0;
           line-height: 1.7;
@@ -621,7 +891,8 @@ export default function SessionPerformancePage() {
 
           .hero-card,
           .scores-card,
-          .conversation-card {
+          .conversation-card,
+          .voice-analysis-card {
             padding: 20px;
             border-radius: 22px;
           }

@@ -11,3 +11,5 @@ python-jose==3.3.0
 requests ==2.31.0
 psycopg2-binary
 python-multipart
+pypdf
+transformers==4.44.2

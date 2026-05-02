@@ -233,3 +233,76 @@ export async function sendVoiceMessage(token, sessionId, file) {
 
   return data;
 }
+
+export async function uploadMyCV(token, file) {
+  const formData = new FormData();
+  formData.append("cv", file);
+
+  const response = await fetch(`${API_BASE_URL}/me/cv/upload`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+    body: formData,
+  });
+
+  const data = await parseJsonSafe(response);
+
+  if (!response.ok) {
+    let message = "Impossible d'uploader le CV";
+
+    if (typeof data?.detail === "string") {
+      message = data.detail;
+    } else if (typeof data?.message === "string") {
+      message = data.message;
+    }
+
+    throw new Error(message);
+  }
+
+  return data;
+}
+
+export async function getMyCV(token) {
+  return fetchJson(
+    "/me/cv",
+    {
+      method: "GET",
+      headers: authHeaders(token),
+    },
+    "Aucun CV trouvé"
+  );
+}
+
+export async function structureMyCV(token) {
+  return fetchJson(
+    "/me/cv/structure",
+    {
+      method: "POST",
+      headers: authHeaders(token),
+    },
+    "Impossible de générer le profil CV"
+  );
+}
+
+export async function getMyCVProfile(token) {
+  return fetchJson(
+    "/me/cv/profile",
+    {
+      method: "GET",
+      headers: authHeaders(token),
+    },
+    "Profil CV structuré non généré"
+  );
+}
+
+export async function deleteMyCV(token) {
+  return fetchJson(
+    "/me/cv",
+    {
+      method: "DELETE",
+      headers: authHeaders(token),
+    },
+    "Impossible de supprimer le CV"
+  );
+}

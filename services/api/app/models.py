@@ -1,5 +1,6 @@
 import uuid
-from sqlalchemy import Column, String, DateTime, func, Integer, ForeignKey, Text, Float
+from datetime import datetime, timezone
+from sqlalchemy import Column, String, DateTime, func, Integer, ForeignKey, Text, Float  
 from sqlalchemy.orm import relationship
 
 from .db import Base
@@ -75,10 +76,17 @@ class Message(Base):
     session_id = Column(String, ForeignKey("sessions.id"), nullable=False)
     role = Column(String, nullable=False)
     content = Column(Text, nullable=False)
+
+    # Sentiment analysis pour les messages vocaux transcrits
+    sentiment_label = Column(String, nullable=True)        # positive / neutral / negative
+    sentiment_score = Column(Float, nullable=True)         # -1.0 à 1.0
+    sentiment_confidence = Column(Float, nullable=True)    # 0.0 à 1.0
+    sentiment_source = Column(String, nullable=True)       # voice_transcription / text / fallback
+    sentiment_model = Column(String, nullable=True)        # nom du modèle utilisé
+
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 
     session = relationship("Session", back_populates="messages")
-
 
 class SessionFeedback(Base):
     __tablename__ = "session_feedbacks"
@@ -98,7 +106,39 @@ class SessionFeedback(Base):
     weaknesses = Column(Text, nullable=True)
     final_advice = Column(Text, nullable=True)
 
+    # Résumé global de l'analyse sentimentale des messages vocaux
+    voice_sentiment_label = Column(String, nullable=True)   # positive / neutral / negative
+    voice_sentiment_score = Column(Float, nullable=True)    # score moyen
+    voice_sentiment_summary = Column(Text, nullable=True)   # résumé textuel
+
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 
     session = relationship("Session", back_populates="feedback")
+    user = relationship("User")
+
+class UserCV(Base):
+    __tablename__ = "user_cvs"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    user_id = Column(String, ForeignKey("users.id"), nullable=False, index=True)
+
+    filename = Column(String, nullable=True)
+    content_type = Column(String, nullable=True)
+
+    extracted_text = Column(Text, nullable=False, default="")
+    structured_profile = Column(Text, nullable=True)
+    profile_generated_at = Column(DateTime(timezone=True), nullable=True)
+
+    created_at = Column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        nullable=False,
+    )
+
+    updated_at = Column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        nullable=False,
+    )
+
     user = relationship("User")

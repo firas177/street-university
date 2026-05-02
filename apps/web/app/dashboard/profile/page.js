@@ -58,7 +58,12 @@ export default function ProfilePage() {
         <style jsx>{`
           .page-shell {
             min-height: 100vh;
-            background: linear-gradient(180deg, #f8fbff 0%, #eef4ff 45%, #ffffff 100%);
+            background: linear-gradient(
+              180deg,
+              #f8fbff 0%,
+              #eef4ff 45%,
+              #ffffff 100%
+            );
             padding: 32px 20px 60px;
           }
 
@@ -106,11 +111,15 @@ export default function ProfilePage() {
             }}
           >
             <div className="top-actions">
-              <Button
-                variant="blue"
-                onClick={() => router.push("/pricing")}
-              >
+              <Button variant="blue" onClick={() => router.push("/pricing")}>
                 Passer au Premium
+              </Button>
+
+              <Button
+                variant="secondary"
+                onClick={() => router.push("/dashboard/profile/cv")}
+              >
+                Gérer mon CV IA
               </Button>
             </div>
 
@@ -140,7 +149,9 @@ export default function ProfilePage() {
 
               <div className="info-card">
                 <h3 className="info-title">Adresse email</h3>
-                <p className="info-value email-break">{profile?.email || "—"}</p>
+                <p className="info-value email-break">
+                  {profile?.email || "—"}
+                </p>
               </div>
 
               <div className="info-card">
@@ -160,7 +171,12 @@ export default function ProfilePage() {
       <style jsx>{`
         .page-shell {
           min-height: 100vh;
-          background: linear-gradient(180deg, #f8fbff 0%, #eef4ff 45%, #ffffff 100%);
+          background: linear-gradient(
+            180deg,
+            #f8fbff 0%,
+            #eef4ff 45%,
+            #ffffff 100%
+          );
           padding: 32px 20px 60px;
         }
 
@@ -172,6 +188,8 @@ export default function ProfilePage() {
         .top-actions {
           display: flex;
           justify-content: flex-start;
+          gap: 12px;
+          flex-wrap: wrap;
           margin-bottom: 20px;
         }
 
