@@ -25,8 +25,12 @@ services:
       AI_API_KEY: ${AI_API_KEY}
       AI_API_URL: ${AI_API_URL}
       AI_MODEL: ${AI_MODEL}
+      ENABLE_TRANSFORMER_SENTIMENT: "true"
+      SENTIMENT_CONFIDENCE_THRESHOLD: "0.70"
     ports:
       - "8000:8000"
+    volumes:
+      - hf_cache:/root/.cache/huggingface
     depends_on:
       - db
 
@@ -44,3 +48,4 @@ services:
 
 volumes:
   streetu_pgdata:
+  hf_cache:
