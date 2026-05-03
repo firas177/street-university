@@ -1250,6 +1250,137 @@ export default function SessionPage() {
           word-break: break-word;
         }
 
+        .page-root {
+          background:
+            radial-gradient(circle at 10% 0%, rgba(37, 99, 235, 0.28), transparent 30%),
+            radial-gradient(circle at 90% 8%, rgba(124, 58, 237, 0.2), transparent 28%),
+            linear-gradient(180deg, #030712 0%, #0f172a 58%, #eef4ff 100%);
+        }
+
+        .session-shell {
+          max-width: 1280px;
+          padding: 34px 20px 72px;
+        }
+
+        .loading-box,
+        .session-header-card,
+        .session-chat-card,
+        .feedback-card {
+          border: 1px solid rgba(147, 197, 253, 0.22);
+          background:
+            linear-gradient(145deg, rgba(15, 23, 42, 0.82), rgba(30, 41, 59, 0.52)),
+            rgba(255, 255, 255, 0.08);
+          box-shadow:
+            0 28px 90px rgba(2, 6, 23, 0.28),
+            inset 0 1px 0 rgba(255, 255, 255, 0.08);
+          backdrop-filter: blur(18px);
+        }
+
+        .loading-title,
+        .session-title,
+        .timer-title,
+        .feedback-title,
+        .feedback-text-box h3,
+        .score-item strong {
+          color: #f8fafc;
+        }
+
+        .loading-text,
+        .timer-subtitle,
+        .feedback-subtitle,
+        .feedback-text-box p,
+        .empty-box {
+          color: #dbeafe;
+          font-size: 16px;
+          line-height: 1.75;
+        }
+
+        .category-badge,
+        .status-pill,
+        .timer-pill {
+          font-size: 14px;
+          line-height: 1.35;
+          padding: 8px 12px;
+        }
+
+        .secondary-btn,
+        .complete-btn,
+        .send-button,
+        .performance-btn {
+          min-height: 46px;
+          font-size: 15px;
+          box-shadow: 0 14px 34px rgba(2, 6, 23, 0.2);
+        }
+
+        .secondary-btn {
+          border-color: rgba(147, 197, 253, 0.26);
+          background: rgba(255, 255, 255, 0.1);
+          color: #ffffff;
+        }
+
+        .complete-btn,
+        .send-button {
+          background: linear-gradient(135deg, #2563eb, #14b8a6);
+        }
+
+        .timer-box,
+        .score-item,
+        .feedback-text-box {
+          border: 1px solid rgba(147, 197, 253, 0.18);
+          background:
+            linear-gradient(135deg, rgba(255, 255, 255, 0.12), rgba(96, 165, 250, 0.06)),
+            rgba(15, 23, 42, 0.24);
+        }
+
+        .timer-value {
+          color: #ffffff;
+          font-size: 30px;
+        }
+
+        .messages-list {
+          gap: 18px;
+        }
+
+        .message-bubble {
+          max-width: min(78%, 820px);
+          padding: 16px 18px;
+          font-size: 16px;
+          line-height: 1.75;
+        }
+
+        .message-bubble.user {
+          background: linear-gradient(135deg, #2563eb, #1d4ed8);
+        }
+
+        .message-bubble.assistant {
+          border-color: rgba(147, 197, 253, 0.22);
+          background: rgba(255, 255, 255, 0.95);
+          color: #0f172a;
+        }
+
+        .message-bubble strong {
+          font-size: 15px;
+        }
+
+        .message-content {
+          font-size: 16px;
+          line-height: 1.75;
+        }
+
+        .message-textarea {
+          min-height: 118px;
+          border-color: rgba(147, 197, 253, 0.32);
+          background: rgba(255, 255, 255, 0.96);
+          color: #0f172a;
+          font-size: 16px;
+          line-height: 1.65;
+        }
+
+        .voice-section {
+          border-top: 1px solid rgba(147, 197, 253, 0.18);
+          padding-top: 22px;
+        }
+
         @media (max-width: 900px) {
           .session-shell {
             padding: 24px 16px;

@@ -4,10 +4,6 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Navbar from "../../components/Navbar";
 import Alert from "../../components/ui/Alert";
-import Button from "../../components/ui/Button";
-import Card from "../../components/ui/Card";
-import SectionHeader from "../../components/ui/SectionHeader";
-import StatCard from "../../components/ui/StatCard";
 import { getDashboardPerformance } from "../../lib/api";
 
 function formatScore(value) {
@@ -73,17 +69,13 @@ function ProgressItem({ label, value }) {
     <div className="progress-card">
       <div className="progress-top">
         <div>
-          <h3 className="progress-title">{label}</h3>
-          <p className="progress-subtitle">{level}</p>
+          <h3>{label}</h3>
+          <p>{level}</p>
         </div>
-        <span className="progress-score">{display}</span>
+        <span>{display}</span>
       </div>
-
-      <div className="progress-bar-track">
-        <div
-          className="progress-bar-fill"
-          style={{ width: `${percent}%` }}
-        />
+      <div className="progress-track">
+        <div className="progress-fill" style={{ width: `${percent}%` }} />
       </div>
     </div>
   );
@@ -149,546 +141,393 @@ export default function DashboardPerformancePage() {
       }
     : null;
 
-  if (loading) {
-    return (
-      <>
-        <Navbar />
-        <main className="page-shell">
-          <div className="page-container">
-            <Card style={{ padding: "28px", borderRadius: "28px" }}>
-              <p className="eyebrow">Performance</p>
-              <h1 className="hero-title">Chargement des performances...</h1>
-              <p className="hero-text">
-                Nous récupérons vos statistiques détaillées et votre dernier feedback.
-              </p>
-            </Card>
-          </div>
-        </main>
-
-        <style jsx>{`
-          .page-shell {
-            min-height: 100vh;
-            background: linear-gradient(180deg, #f8fbff 0%, #eef4ff 45%, #ffffff 100%);
-            padding: 32px 20px 60px;
-          }
-
-          .page-container {
-            max-width: 1200px;
-            margin: 0 auto;
-          }
-
-          .eyebrow {
-            margin: 0;
-            color: #2563eb;
-            font-size: 13px;
-            font-weight: 800;
-            letter-spacing: 0.06em;
-            text-transform: uppercase;
-          }
-
-          .hero-title {
-            margin: 12px 0 10px;
-            color: #0f172a;
-            font-size: clamp(30px, 4vw, 46px);
-            line-height: 1.05;
-            font-weight: 900;
-            letter-spacing: -0.04em;
-          }
-
-          .hero-text {
-            margin: 0;
-            color: #64748b;
-            font-size: 16px;
-            line-height: 1.8;
-            font-weight: 500;
-            max-width: 700px;
-          }
-        `}</style>
-      </>
-    );
-  }
+  const metrics = [
+    ["Communication", communicationAverage],
+    ["Confiance", confidenceAverage],
+    ["Clarté", clarityAverage],
+    ["Pertinence", relevanceAverage],
+    ["Professionnalisme", professionalismAverage],
+  ];
 
   return (
     <>
       <Navbar />
 
-      <main className="page-shell">
+      <main className="premium-page">
         <div className="page-container">
           {error && (
-            <Alert
-              type="error"
-              style={{
-                marginBottom: "18px",
-                borderRadius: "18px",
-              }}
-            >
+            <Alert type="error" style={{ marginBottom: "18px" }}>
               {error}
             </Alert>
           )}
 
-          <Card
-            style={{
-              padding: "32px",
-              borderRadius: "30px",
-              background: "linear-gradient(135deg, #ffffff, #eff6ff 50%, #dbeafe)",
-              border: "1px solid #dbeafe",
-              boxShadow: "0 24px 60px rgba(15, 23, 42, 0.08)",
-              marginBottom: "24px",
-            }}
-          >
-            <div className="hero-row">
-              <div className="hero-main">
-                <p className="eyebrow">Performance réelle</p>
-                <h1 className="hero-title">Mes performances détaillées</h1>
-                <p className="hero-text">
-                  Consulte tes scores réels, tes indicateurs par compétence et le
-                  dernier feedback généré par l’IA.
-                </p>
-              </div>
-
-              <div className="hero-actions">
-                <Button
-                  variant="secondary"
-                  onClick={() => router.push("/dashboard")}
-                >
-                  Retour au dashboard
-                </Button>
-              </div>
+          <section className="hero">
+            <div>
+              <p className="eyebrow">Performance réelle</p>
+              <h1>{loading ? "Chargement des performances..." : "Mes performances détaillées"}</h1>
+              <p>
+                Consulte tes scores réels, tes indicateurs par compétence et le
+                dernier feedback généré par l'IA.
+              </p>
             </div>
-          </Card>
-
-          <section style={{ marginBottom: "24px" }}>
-            <SectionHeader
-              eyebrow="Performance"
-              title="Aperçu global"
-              description="Résumé des statistiques calculées à partir de vos sessions évaluées."
-            />
-
-            {!hasPerformance ? (
-              <Card style={{ padding: "24px", borderRadius: "24px" }}>
-                <Alert type="info" style={{ borderRadius: "16px" }}>
-                  Aucune performance réelle n’est encore disponible. Termine une
-                  session évaluée pour voir apparaître tes statistiques détaillées.
-                </Alert>
-              </Card>
-            ) : (
-              <div className="stats-grid">
-                <StatCard
-                  label="Score global moyen"
-                  value={formatScore(averageScore)}
-                  helpText="Moyenne globale des sessions notées."
-                  accent="blue"
-                />
-                <StatCard
-                  label="Meilleur score"
-                  value={formatScore(bestScore)}
-                  helpText="Meilleure performance obtenue."
-                  accent="green"
-                />
-                <StatCard
-                  label="Sessions évaluées"
-                  value={completedRatedSessions}
-                  helpText="Sessions avec feedback IA."
-                  accent="slate"
-                />
-                <StatCard
-                  label="Communication"
-                  value={formatMetric(communicationAverage)}
-                  helpText="Qualité de l’expression."
-                  accent="blue"
-                />
-                <StatCard
-                  label="Confiance"
-                  value={formatMetric(confidenceAverage)}
-                  helpText="Niveau moyen d’assurance."
-                  accent="green"
-                />
-                <StatCard
-                  label="Clarté"
-                  value={formatMetric(clarityAverage)}
-                  helpText="Clarté et structure."
-                  accent="amber"
-                />
-                <StatCard
-                  label="Pertinence"
-                  value={formatMetric(relevanceAverage)}
-                  helpText="Adéquation du contenu."
-                  accent="blue"
-                />
-                <StatCard
-                  label="Professionnalisme"
-                  value={formatMetric(professionalismAverage)}
-                  helpText="Posture et qualité professionnelle."
-                  accent="slate"
-                />
-              </div>
-            )}
+            <button onClick={() => router.push("/dashboard")}>
+              Retour au dashboard
+            </button>
           </section>
 
-          {hasPerformance && (
-            <section style={{ marginBottom: "24px" }}>
-              <SectionHeader
-                eyebrow="Progression"
-                title="État actuel et historique"
-                description="Vue simple de vos compétences actuelles et préparation d’un futur historique détaillé."
-              />
-
-              <div className="history-layout">
-                <Card style={{ padding: "24px", borderRadius: "24px" }}>
-                  <h3 className="history-title">Niveau actuel par compétence</h3>
-                  <p className="history-text">
-                    Cette section résume votre niveau actuel sur les axes les plus
-                    importants. Un historique détaillé session par session pourra
-                    être ajouté ensuite.
-                  </p>
-
-                  <div className="progress-list">
-                    <ProgressItem
-                      label="Communication"
-                      value={communicationAverage}
-                    />
-                    <ProgressItem
-                      label="Confiance"
-                      value={confidenceAverage}
-                    />
-                    <ProgressItem
-                      label="Clarté"
-                      value={clarityAverage}
-                    />
-                    <ProgressItem
-                      label="Pertinence"
-                      value={relevanceAverage}
-                    />
-                    <ProgressItem
-                      label="Professionnalisme"
-                      value={professionalismAverage}
-                    />
-                  </div>
-                </Card>
-
-                <Card style={{ padding: "24px", borderRadius: "24px" }}>
-                  <h3 className="history-title">Historique détaillé</h3>
-                  <p className="history-text">
-                    La page est déjà prête pour accueillir une vraie courbe
-                    d’évolution ou une liste chronologique des dernières sessions
-                    notées.
-                  </p>
-
-                  <div className="history-placeholder">
-                    <div className="history-point">
-                      <span className="history-dot" />
-                      <div>
-                        <p className="history-item-title">Dernier état connu</p>
-                        <p className="history-item-text">
-                          Score moyen actuel : {formatScore(averageScore)}
-                        </p>
-                      </div>
-                    </div>
-
-                    <div className="history-point">
-                      <span className="history-dot" />
-                      <div>
-                        <p className="history-item-title">Meilleure performance</p>
-                        <p className="history-item-text">
-                          Meilleur score observé : {formatScore(bestScore)}
-                        </p>
-                      </div>
-                    </div>
-
-                    <div className="history-point">
-                      <span className="history-dot" />
-                      <div>
-                        <p className="history-item-title">Prochaine amélioration</p>
-                        <p className="history-item-text">
-                          Ajouter plus tard un vrai historique par session ou un
-                          graphique d’évolution.
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                </Card>
-              </div>
+          {!loading && !hasPerformance && (
+            <section className="empty-card">
+              <p className="eyebrow">Aperçu global</p>
+              <h2>Aucune performance réelle disponible</h2>
+              <p>
+                Termine une session évaluée pour voir apparaître tes statistiques
+                détaillées.
+              </p>
             </section>
           )}
 
-          {hasPerformance && (
-            <section style={{ marginBottom: "24px" }}>
-              <SectionHeader
-                eyebrow="Feedback"
-                title="Dernier feedback IA"
-                description="Résumé du dernier retour généré après une session évaluée."
-              />
+          {!loading && hasPerformance && (
+            <>
+              <section className="summary-grid">
+                <article className="summary-card hero-score">
+                  <span>Score global moyen</span>
+                  <strong>{formatScore(averageScore)}</strong>
+                  <p>Moyenne globale des sessions notées.</p>
+                </article>
+                <article className="summary-card">
+                  <span>Meilleur score</span>
+                  <strong>{formatScore(bestScore)}</strong>
+                  <p>Meilleure performance obtenue.</p>
+                </article>
+                <article className="summary-card">
+                  <span>Sessions évaluées</span>
+                  <strong>{completedRatedSessions}</strong>
+                  <p>Sessions avec feedback IA.</p>
+                </article>
+              </section>
 
-              <div className="feedback-grid">
-                <Card style={{ padding: "22px", borderRadius: "24px" }}>
-                  <h3 className="feedback-title blue">Points forts</h3>
-                  <p className="feedback-text">
-                    {latestFeedback?.strengths || "Aucun point fort disponible."}
-                  </p>
-                </Card>
+              <section className="section-heading">
+                <p className="eyebrow">Progression</p>
+                <h2>Niveau actuel par compétence</h2>
+              </section>
 
-                <Card style={{ padding: "22px", borderRadius: "24px" }}>
-                  <h3 className="feedback-title orange">Axes d’amélioration</h3>
-                  <p className="feedback-text">
+              <section className="progress-layout">
+                <div className="progress-list">
+                  {metrics.map(([label, value]) => (
+                    <ProgressItem key={label} label={label} value={value} />
+                  ))}
+                </div>
+
+                <article className="timeline-card">
+                  <p className="eyebrow">Historique</p>
+                  <h3>État actuel</h3>
+                  <div className="timeline-item">
+                    <span />
+                    <p>Score moyen actuel : {formatScore(averageScore)}</p>
+                  </div>
+                  <div className="timeline-item">
+                    <span />
+                    <p>Meilleur score observé : {formatScore(bestScore)}</p>
+                  </div>
+                  <div className="timeline-item">
+                    <span />
+                    <p>Prochaine étape : compléter plus de simulations évaluées.</p>
+                  </div>
+                </article>
+              </section>
+
+              <section className="section-heading">
+                <p className="eyebrow">Feedback</p>
+                <h2>Dernier feedback IA</h2>
+              </section>
+
+              <section className="feedback-grid">
+                <article>
+                  <span className="token success">Points forts</span>
+                  <p>{latestFeedback?.strengths || "Aucun point fort disponible."}</p>
+                </article>
+                <article>
+                  <span className="token warning">Axes d'amélioration</span>
+                  <p>
                     {latestFeedback?.weaknesses ||
-                      "Aucun axe d’amélioration disponible."}
+                      "Aucun axe d'amélioration disponible."}
                   </p>
-                </Card>
-
-                <Card style={{ padding: "22px", borderRadius: "24px" }}>
-                  <h3 className="feedback-title green">Conseil final</h3>
-                  <p className="feedback-text">
+                </article>
+                <article>
+                  <span className="token blue">Conseil final</span>
+                  <p>
                     {latestFeedback?.final_advice ||
                       "Aucun conseil final disponible."}
                   </p>
-                </Card>
-              </div>
-            </section>
+                </article>
+              </section>
+            </>
           )}
         </div>
       </main>
 
       <style jsx>{`
-        .page-shell {
+        .premium-page {
           min-height: 100vh;
-          background: linear-gradient(180deg, #f8fbff 0%, #eef4ff 45%, #ffffff 100%);
-          padding: 32px 20px 60px;
+          background:
+            radial-gradient(circle at 10% 0%, rgba(37, 99, 235, 0.3), transparent 30%),
+            radial-gradient(circle at 90% 10%, rgba(124, 58, 237, 0.22), transparent 30%),
+            linear-gradient(180deg, #030712 0%, #0f172a 58%, #eef4ff 100%);
+          padding: 34px 20px 76px;
+          color: #f8fafc;
         }
 
         .page-container {
-          max-width: 1200px;
+          max-width: 1280px;
           margin: 0 auto;
         }
 
-        .hero-row {
+        .hero,
+        .empty-card,
+        .summary-card,
+        .progress-list,
+        .timeline-card,
+        .feedback-grid article {
+          border: 1px solid rgba(147, 197, 253, 0.22);
+          border-radius: 30px;
+          background:
+            linear-gradient(145deg, rgba(15, 23, 42, 0.82), rgba(30, 41, 59, 0.52)),
+            rgba(255, 255, 255, 0.08);
+          box-shadow: 0 28px 90px rgba(2, 6, 23, 0.28);
+          backdrop-filter: blur(18px);
+        }
+
+        .hero {
           display: flex;
           justify-content: space-between;
           align-items: flex-start;
-          gap: 20px;
-          flex-wrap: wrap;
-        }
-
-        .hero-main {
-          max-width: 760px;
-          min-width: 0;
-          flex: 1;
+          gap: 24px;
+          padding: 34px;
+          margin-bottom: 20px;
         }
 
         .eyebrow {
-          margin: 0;
-          color: #2563eb;
+          margin: 0 0 10px;
+          color: #93c5fd;
           font-size: 13px;
-          font-weight: 800;
-          letter-spacing: 0.06em;
+          line-height: 1.4;
+          font-weight: 900;
+          letter-spacing: 0.09em;
           text-transform: uppercase;
         }
 
-        .hero-title {
-          margin: 12px 0 10px;
-          color: #0f172a;
-          font-size: clamp(30px, 4vw, 46px);
-          line-height: 1.05;
-          font-weight: 900;
-          letter-spacing: -0.04em;
-        }
-
-        .hero-text {
+        h1 {
           margin: 0;
-          color: #334155;
+          font-size: clamp(40px, 6vw, 68px);
+          line-height: 0.98;
+          font-weight: 950;
+        }
+
+        .hero p,
+        .empty-card p,
+        .summary-card p,
+        .timeline-card p,
+        .feedback-grid p {
+          color: #dbeafe;
           font-size: 16px;
-          line-height: 1.8;
-          font-weight: 500;
-          max-width: 700px;
+          line-height: 1.75;
         }
 
-        .hero-actions {
-          display: flex;
-          gap: 12px;
-          flex-wrap: wrap;
-        }
-
-        .stats-grid {
-          display: grid;
-          grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-          gap: 16px;
-        }
-
-        .history-layout {
-          display: grid;
-          grid-template-columns: 1.3fr 1fr;
-          gap: 16px;
-        }
-
-        .history-title {
-          margin: 0 0 10px;
+        button {
+          min-height: 48px;
+          border: 1px solid rgba(147, 197, 253, 0.28);
+          border-radius: 16px;
+          padding: 12px 16px;
+          background: linear-gradient(135deg, #ffffff, #93c5fd 54%, #22d3ee);
           color: #0f172a;
-          font-size: 20px;
+          font-size: 15px;
+          font-weight: 950;
+          cursor: pointer;
+        }
+
+        .empty-card,
+        .timeline-card {
+          padding: 28px;
+        }
+
+        .empty-card h2,
+        .section-heading h2,
+        .timeline-card h3 {
+          margin: 0;
+          color: #ffffff;
+          font-size: clamp(28px, 4vw, 42px);
+          line-height: 1.1;
+          font-weight: 950;
+        }
+
+        .summary-grid {
+          display: grid;
+          grid-template-columns: 1.4fr 1fr 1fr;
+          gap: 18px;
+          margin-bottom: 28px;
+        }
+
+        .summary-card {
+          padding: 24px;
+        }
+
+        .summary-card span {
+          color: #93c5fd;
+          font-size: 15px;
           font-weight: 900;
         }
 
-        .history-text {
-          margin: 0 0 20px;
-          color: #64748b;
-          font-size: 15px;
-          line-height: 1.75;
-          font-weight: 500;
+        .summary-card strong {
+          display: block;
+          margin-top: 12px;
+          color: #ffffff;
+          font-size: clamp(34px, 5vw, 56px);
+          line-height: 1;
+          font-weight: 950;
+        }
+
+        .section-heading {
+          margin: 30px 0 16px;
+        }
+
+        .progress-layout {
+          display: grid;
+          grid-template-columns: minmax(0, 1.35fr) minmax(320px, 0.8fr);
+          gap: 18px;
         }
 
         .progress-list {
           display: grid;
           gap: 14px;
+          padding: 20px;
         }
 
         .progress-card {
-          border: 1px solid #e2e8f0;
-          border-radius: 18px;
+          border: 1px solid rgba(147, 197, 253, 0.18);
+          border-radius: 20px;
           padding: 16px;
-          background: #ffffff;
+          background: rgba(255, 255, 255, 0.08);
         }
 
         .progress-top {
           display: flex;
-          align-items: flex-start;
           justify-content: space-between;
-          gap: 12px;
-          margin-bottom: 10px;
+          gap: 16px;
+          margin-bottom: 12px;
         }
 
-        .progress-title {
+        .progress-card h3 {
           margin: 0;
-          color: #0f172a;
+          color: #ffffff;
+          font-size: 17px;
+          font-weight: 950;
+        }
+
+        .progress-card p {
+          margin: 5px 0 0;
+          color: #c7d2fe;
           font-size: 15px;
-          font-weight: 800;
         }
 
-        .progress-subtitle {
-          margin: 4px 0 0;
-          color: #64748b;
-          font-size: 13px;
-          font-weight: 600;
+        .progress-card span {
+          color: #e0f2fe;
+          font-size: 16px;
+          font-weight: 950;
         }
 
-        .progress-score {
-          color: #2563eb;
-          font-size: 15px;
-          font-weight: 900;
-          white-space: nowrap;
-        }
-
-        .progress-bar-track {
-          width: 100%;
-          height: 10px;
+        .progress-track {
+          height: 12px;
           border-radius: 999px;
-          background: #e2e8f0;
+          background: rgba(255, 255, 255, 0.13);
           overflow: hidden;
         }
 
-        .progress-bar-fill {
+        .progress-fill {
           height: 100%;
-          border-radius: 999px;
-          background: linear-gradient(90deg, #60a5fa, #2563eb);
+          border-radius: inherit;
+          background: linear-gradient(90deg, #2563eb, #22d3ee, #16a34a);
         }
 
-        .history-placeholder {
+        .timeline-item {
           display: grid;
-          gap: 18px;
-        }
-
-        .history-point {
-          display: flex;
-          align-items: flex-start;
+          grid-template-columns: 14px 1fr;
           gap: 12px;
+          margin-top: 18px;
         }
 
-        .history-dot {
+        .timeline-item span {
           width: 12px;
           height: 12px;
           border-radius: 999px;
-          background: #2563eb;
-          margin-top: 6px;
-          flex-shrink: 0;
-        }
-
-        .history-item-title {
-          margin: 0 0 4px;
-          color: #0f172a;
-          font-size: 15px;
-          font-weight: 800;
-        }
-
-        .history-item-text {
-          margin: 0;
-          color: #64748b;
-          font-size: 14px;
-          line-height: 1.7;
-          font-weight: 500;
+          background: #22d3ee;
+          margin-top: 8px;
         }
 
         .feedback-grid {
           display: grid;
-          grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-          gap: 16px;
+          grid-template-columns: repeat(3, 1fr);
+          gap: 18px;
         }
 
-        .feedback-title {
-          margin: 0 0 12px;
-          font-size: 18px;
-          font-weight: 800;
+        .feedback-grid article {
+          padding: 22px;
         }
 
-        .feedback-title.blue {
+        .token {
+          display: inline-flex;
+          min-height: 32px;
+          align-items: center;
+          padding: 7px 11px;
+          border-radius: 999px;
+          font-size: 14px;
+          font-weight: 950;
+        }
+
+        .token.success {
+          background: #dcfce7;
+          color: #166534;
+        }
+
+        .token.warning {
+          background: #fef3c7;
+          color: #92400e;
+        }
+
+        .token.blue {
+          background: #dbeafe;
           color: #1d4ed8;
         }
 
-        .feedback-title.orange {
-          color: #c2410c;
-        }
-
-        .feedback-title.green {
-          color: #15803d;
-        }
-
-        .feedback-text {
-          margin: 0;
-          color: #475569;
-          font-size: 15px;
-          line-height: 1.75;
-          font-weight: 500;
-          white-space: pre-line;
-          word-break: break-word;
-        }
-
-        @media (max-width: 900px) {
-          .page-shell {
-            padding: 28px 18px 48px;
-          }
-
-          .page-container {
-            max-width: 100%;
-          }
-
-          .history-layout {
+        @media (max-width: 980px) {
+          .hero,
+          .summary-grid,
+          .progress-layout,
+          .feedback-grid {
             grid-template-columns: 1fr;
+          }
+
+          .hero {
+            flex-direction: column;
           }
         }
 
         @media (max-width: 640px) {
-          .page-shell {
-            padding: 20px 12px 36px;
+          .premium-page {
+            padding: 20px 12px 46px;
           }
 
-          .hero-title {
-            font-size: 32px;
+          .hero,
+          .empty-card,
+          .summary-card,
+          .progress-list,
+          .timeline-card,
+          .feedback-grid article {
+            border-radius: 24px;
+            padding: 22px;
           }
 
-          .hero-text {
-            font-size: 15px;
-            line-height: 1.7;
-          }
-
-          .stats-grid,
-          .feedback-grid {
-            grid-template-columns: 1fr;
+          h1 {
+            font-size: 38px;
           }
         }
       `}</style>

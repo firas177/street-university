@@ -858,6 +858,124 @@ export default function SessionPerformancePage() {
           opacity: 0.75;
         }
 
+        .page-root {
+          background:
+            radial-gradient(circle at 10% 0%, rgba(37, 99, 235, 0.28), transparent 30%),
+            radial-gradient(circle at 88% 10%, rgba(124, 58, 237, 0.22), transparent 30%),
+            linear-gradient(180deg, #030712 0%, #0f172a 55%, #eef4ff 100%);
+        }
+
+        .performance-shell {
+          max-width: 1280px;
+          padding: 34px 20px 72px;
+        }
+
+        .loading-card,
+        .hero-card,
+        .scores-card,
+        .conversation-card,
+        .voice-analysis-card,
+        .analysis-card,
+        .stat-card {
+          border: 1px solid rgba(147, 197, 253, 0.22);
+          background:
+            linear-gradient(145deg, rgba(15, 23, 42, 0.82), rgba(30, 41, 59, 0.52)),
+            rgba(255, 255, 255, 0.08);
+          box-shadow:
+            0 28px 90px rgba(2, 6, 23, 0.28),
+            inset 0 1px 0 rgba(255, 255, 255, 0.08);
+          backdrop-filter: blur(18px);
+        }
+
+        .secondary-btn {
+          border-color: rgba(147, 197, 253, 0.26);
+          background: rgba(255, 255, 255, 0.1);
+          color: #ffffff;
+          min-height: 46px;
+          font-size: 15px;
+        }
+
+        .loading-card h1,
+        .hero-card h1,
+        .section-title h2,
+        .score-item strong,
+        .voice-main h3,
+        .voice-summary h4,
+        .voice-impact h4,
+        .analysis-card h3,
+        .stat-card strong {
+          color: #f8fafc;
+        }
+
+        .description,
+        .loading-card p,
+        .score-item p,
+        .voice-main p,
+        .voice-summary p,
+        .voice-impact p,
+        .analysis-card p,
+        .message-bubble p,
+        .empty-box {
+          color: #dbeafe;
+          font-size: 16px;
+          line-height: 1.75;
+        }
+
+        .eyebrow,
+        .stat-card span,
+        .score-item span,
+        .voice-metric-box span {
+          color: #93c5fd;
+          font-size: 13px;
+        }
+
+        .global-score-card,
+        .score-item,
+        .voice-metric-box,
+        .voice-summary,
+        .voice-impact,
+        .empty-box {
+          border: 1px solid rgba(147, 197, 253, 0.18);
+          background:
+            linear-gradient(135deg, rgba(255, 255, 255, 0.12), rgba(96, 165, 250, 0.06)),
+            rgba(15, 23, 42, 0.24);
+        }
+
+        .global-score-card strong,
+        .voice-metric-box strong {
+          color: #ffffff;
+        }
+
+        .badges span {
+          background: rgba(96, 165, 250, 0.16);
+          color: #dbeafe;
+          border-color: rgba(147, 197, 253, 0.32);
+          font-size: 14px;
+        }
+
+        .message-bubble {
+          font-size: 16px;
+          line-height: 1.75;
+        }
+
+        .message-bubble.assistant {
+          background: rgba(255, 255, 255, 0.95);
+          color: #0f172a;
+        }
+
+        .message-bubble.assistant p {
+          color: #334155;
+        }
+
+        .message-bubble.user {
+          background: linear-gradient(135deg, #2563eb, #1d4ed8);
+        }
+
+        .message-sentiment {
+          font-size: 13px;
+          line-height: 1.35;
+        }
+
         @media (max-width: 800px) {
           .hero-card {
             flex-direction: column;

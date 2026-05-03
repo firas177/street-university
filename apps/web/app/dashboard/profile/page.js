@@ -3,8 +3,6 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Navbar from "../../components/Navbar";
-import Button from "../../components/ui/Button";
-import Card from "../../components/ui/Card";
 import Alert from "../../components/ui/Alert";
 import { getProfile } from "../../lib/api";
 
@@ -40,63 +38,11 @@ export default function ProfilePage() {
     loadProfile();
   }, [router]);
 
-  if (loading) {
-    return (
-      <>
-        <Navbar />
-        <main className="page-shell">
-          <div className="page-container">
-            <Card style={{ padding: "28px", borderRadius: "28px" }}>
-              <h1 className="page-title">Chargement du profil...</h1>
-              <p className="page-text">
-                Nous récupérons les informations du compte.
-              </p>
-            </Card>
-          </div>
-        </main>
-
-        <style jsx>{`
-          .page-shell {
-            min-height: 100vh;
-            background: linear-gradient(
-              180deg,
-              #f8fbff 0%,
-              #eef4ff 45%,
-              #ffffff 100%
-            );
-            padding: 32px 20px 60px;
-          }
-
-          .page-container {
-            max-width: 900px;
-            margin: 0 auto;
-          }
-
-          .page-title {
-            margin: 0;
-            color: #0f172a;
-            font-size: clamp(28px, 4vw, 40px);
-            line-height: 1.1;
-            font-weight: 900;
-            letter-spacing: -0.03em;
-          }
-
-          .page-text {
-            margin: 12px 0 0;
-            color: #64748b;
-            font-size: 15px;
-            line-height: 1.7;
-          }
-        `}</style>
-      </>
-    );
-  }
-
   return (
     <>
       <Navbar />
 
-      <main className="page-shell">
+      <main className="premium-page">
         <div className="page-container">
           {error && (
             <Alert type="warning" style={{ marginBottom: "18px" }}>
@@ -104,224 +50,245 @@ export default function ProfilePage() {
             </Alert>
           )}
 
-          <Card
-            style={{
-              padding: "28px",
-              borderRadius: "28px",
-            }}
-          >
-            <div className="top-actions">
-              <Button variant="blue" onClick={() => router.push("/pricing")}>
+          <section className="hero-card">
+            <div>
+              <p className="eyebrow">Profil étudiant</p>
+              <h1>{loading ? "Chargement du profil..." : "Compte et CV IA"}</h1>
+              <p>
+                Gérez les informations du compte et accédez au profil CV utilisé
+                par Street University pour personnaliser les simulations.
+              </p>
+            </div>
+
+            <div className="action-panel">
+              <button onClick={() => router.push("/pricing")}>
                 Passer au Premium
-              </Button>
-
-              <Button
-                variant="secondary"
-                onClick={() => router.push("/dashboard/profile/cv")}
-              >
+              </button>
+              <button onClick={() => router.push("/dashboard/profile/cv")}>
                 Gérer mon CV IA
-              </Button>
+              </button>
             </div>
+          </section>
 
-            <div className="plan-banner">
-              <div>
-                <p className="plan-label">Plan actuel</p>
-                <h3 className="plan-title">{isPremium ? "Premium" : "Free"}</h3>
-                <p className="plan-description">
-                  {isPremium
-                    ? "Vous avez accès aux fonctionnalités avancées de Street University."
-                    : "Vous êtes actuellement sur le plan gratuit avec accès de base."}
-                </p>
-              </div>
+          {!loading && (
+            <>
+              <section className="plan-card">
+                <div>
+                  <p className="eyebrow">Plan actuel</p>
+                  <h2>{isPremium ? "Premium" : "Free"}</h2>
+                  <p>
+                    {isPremium
+                      ? "Vous avez accès aux fonctionnalités avancées de Street University."
+                      : "Vous êtes actuellement sur le plan gratuit avec accès de base."}
+                  </p>
+                </div>
+                <span className={`plan-badge ${isPremium ? "premium" : "free"}`}>
+                  {isPremium ? "Premium" : "Free"}
+                </span>
+              </section>
 
-              <span className={`plan-badge ${isPremium ? "premium" : "free"}`}>
-                {isPremium ? "Premium" : "Free"}
-              </span>
-            </div>
-
-            <h1 className="section-title">Informations principales</h1>
-
-            <div className="info-list">
-              <div className="info-card">
-                <h3 className="info-title">Nom complet</h3>
-                <p className="info-value">{profile?.full_name || "—"}</p>
-              </div>
-
-              <div className="info-card">
-                <h3 className="info-title">Adresse email</h3>
-                <p className="info-value email-break">
-                  {profile?.email || "—"}
-                </p>
-              </div>
-
-              <div className="info-card">
-                <h3 className="info-title">Rôle</h3>
-                <p className="info-value">{profile?.role || "student"}</p>
-              </div>
-
-              <div className="info-card">
-                <h3 className="info-title">Identifiant utilisateur</h3>
-                <p className="info-value id-break">{profile?.id || "—"}</p>
-              </div>
-            </div>
-          </Card>
+              <section className="info-grid">
+                <article>
+                  <span>Nom complet</span>
+                  <strong>{profile?.full_name || "—"}</strong>
+                </article>
+                <article>
+                  <span>Adresse email</span>
+                  <strong className="break">{profile?.email || "—"}</strong>
+                </article>
+                <article>
+                  <span>Rôle</span>
+                  <strong>{profile?.role || "student"}</strong>
+                </article>
+                <article>
+                  <span>Identifiant utilisateur</span>
+                  <strong className="break">{profile?.id || "—"}</strong>
+                </article>
+              </section>
+            </>
+          )}
         </div>
       </main>
 
       <style jsx>{`
-        .page-shell {
+        .premium-page {
           min-height: 100vh;
-          background: linear-gradient(
-            180deg,
-            #f8fbff 0%,
-            #eef4ff 45%,
-            #ffffff 100%
-          );
-          padding: 32px 20px 60px;
+          background:
+            radial-gradient(circle at 10% 0%, rgba(37, 99, 235, 0.3), transparent 30%),
+            radial-gradient(circle at 90% 10%, rgba(124, 58, 237, 0.22), transparent 30%),
+            linear-gradient(180deg, #030712 0%, #0f172a 58%, #eef4ff 100%);
+          padding: 34px 20px 76px;
+          color: #f8fafc;
         }
 
         .page-container {
-          max-width: 900px;
+          max-width: 1180px;
           margin: 0 auto;
         }
 
-        .top-actions {
-          display: flex;
-          justify-content: flex-start;
-          gap: 12px;
-          flex-wrap: wrap;
-          margin-bottom: 20px;
+        .hero-card,
+        .plan-card,
+        .info-grid article {
+          border: 1px solid rgba(147, 197, 253, 0.22);
+          border-radius: 30px;
+          background:
+            linear-gradient(145deg, rgba(15, 23, 42, 0.82), rgba(30, 41, 59, 0.52)),
+            rgba(255, 255, 255, 0.08);
+          box-shadow: 0 28px 90px rgba(2, 6, 23, 0.28);
+          backdrop-filter: blur(18px);
         }
 
-        .plan-banner {
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          gap: 16px;
-          flex-wrap: wrap;
-          padding: 20px 22px;
-          border-radius: 22px;
-          background: linear-gradient(135deg, #ffffff, #eff6ff);
-          border: 1px solid #dbeafe;
-          box-shadow: 0 14px 30px rgba(15, 23, 42, 0.05);
-          margin-bottom: 22px;
+        .hero-card {
+          display: grid;
+          grid-template-columns: minmax(0, 1fr) 280px;
+          gap: 24px;
+          padding: 34px;
+          margin-bottom: 18px;
         }
 
-        .plan-label {
-          margin: 0 0 6px;
-          color: #2563eb;
-          font-size: 12px;
-          font-weight: 800;
-          letter-spacing: 0.06em;
+        .eyebrow {
+          margin: 0 0 10px;
+          color: #93c5fd;
+          font-size: 13px;
+          line-height: 1.4;
+          font-weight: 900;
+          letter-spacing: 0.09em;
           text-transform: uppercase;
         }
 
-        .plan-title {
-          margin: 0 0 6px;
-          color: #0f172a;
-          font-size: 24px;
-          font-weight: 900;
+        h1 {
+          margin: 0;
+          font-size: clamp(40px, 6vw, 68px);
+          line-height: 0.98;
+          font-weight: 950;
         }
 
-        .plan-description {
+        .hero-card p,
+        .plan-card p {
+          color: #dbeafe;
+          font-size: 16px;
+          line-height: 1.75;
+          margin: 14px 0 0;
+        }
+
+        .action-panel {
+          display: grid;
+          gap: 12px;
+          align-content: center;
+        }
+
+        .action-panel button {
+          min-height: 50px;
+          border: 1px solid rgba(147, 197, 253, 0.28);
+          border-radius: 16px;
+          padding: 12px 16px;
+          background: linear-gradient(135deg, rgba(255, 255, 255, 0.16), rgba(96, 165, 250, 0.1));
+          color: #ffffff;
+          font-size: 15px;
+          font-weight: 900;
+          cursor: pointer;
+        }
+
+        .action-panel button:first-child {
+          background: linear-gradient(135deg, #ffffff, #93c5fd 54%, #22d3ee);
+          color: #0f172a;
+        }
+
+        .plan-card {
+          display: flex;
+          justify-content: space-between;
+          gap: 20px;
+          align-items: center;
+          padding: 28px;
+          margin-bottom: 18px;
+        }
+
+        .plan-card h2 {
           margin: 0;
-          color: #64748b;
-          font-size: 14px;
-          line-height: 1.7;
-          font-weight: 500;
-          max-width: 560px;
+          color: #ffffff;
+          font-size: 34px;
+          font-weight: 950;
         }
 
         .plan-badge {
           display: inline-flex;
           align-items: center;
           justify-content: center;
-          padding: 10px 16px;
+          min-height: 42px;
+          padding: 9px 16px;
           border-radius: 999px;
-          font-size: 13px;
-          font-weight: 800;
-          border: 1px solid transparent;
-          min-width: 90px;
+          font-size: 15px;
+          font-weight: 950;
         }
 
         .plan-badge.free {
-          background: #eff6ff;
-          color: #2563eb;
-          border-color: #bfdbfe;
+          background: #dbeafe;
+          color: #1d4ed8;
         }
 
         .plan-badge.premium {
           background: #fef3c7;
-          color: #b45309;
-          border-color: #fcd34d;
+          color: #92400e;
         }
 
-        .section-title {
-          margin: 0 0 22px;
-          color: #0f172a;
-          font-size: clamp(30px, 4vw, 42px);
-          line-height: 1.08;
-          font-weight: 900;
-          letter-spacing: -0.03em;
-        }
-
-        .info-list {
+        .info-grid {
           display: grid;
+          grid-template-columns: repeat(2, minmax(0, 1fr));
           gap: 18px;
         }
 
-        .info-card {
-          border: 1px solid #dbeafe;
-          border-radius: 22px;
-          padding: 20px;
-          background: #ffffff;
+        .info-grid article {
+          padding: 24px;
         }
 
-        .info-title {
-          margin: 0 0 10px;
-          color: #0f172a;
-          font-size: 15px;
-          font-weight: 800;
+        .info-grid span {
+          display: block;
+          color: #93c5fd;
+          font-size: 14px;
+          font-weight: 900;
+          margin-bottom: 10px;
         }
 
-        .info-value {
-          margin: 0;
-          color: #475569;
-          font-size: 15px;
-          line-height: 1.75;
-          word-break: break-word;
+        .info-grid strong {
+          display: block;
+          color: #ffffff;
+          font-size: 20px;
+          line-height: 1.45;
+          font-weight: 900;
         }
 
-        .email-break,
-        .id-break {
+        .break {
           overflow-wrap: anywhere;
           word-break: break-word;
         }
 
-        @media (max-width: 700px) {
-          .page-shell {
-            padding: 20px 12px 36px;
-          }
-
-          .section-title {
-            font-size: 32px;
-          }
-
-          .top-actions {
+        @media (max-width: 800px) {
+          .hero-card,
+          .plan-card {
+            grid-template-columns: 1fr;
             flex-direction: column;
             align-items: stretch;
           }
 
-          .plan-banner {
-            padding: 18px;
+          .info-grid {
+            grid-template-columns: 1fr;
+          }
+        }
+
+        @media (max-width: 640px) {
+          .premium-page {
+            padding: 20px 12px 46px;
           }
 
-          .plan-title {
-            font-size: 20px;
+          .hero-card,
+          .plan-card,
+          .info-grid article {
+            border-radius: 24px;
+            padding: 22px;
           }
 
-          .plan-badge {
-            width: 100%;
+          h1 {
+            font-size: 38px;
           }
         }
       `}</style>

@@ -1730,6 +1730,82 @@ export default function DashboardPage() {
           font-weight: 600;
         }
 
+        .premium-dashboard-v2 {
+          color: #f8fafc;
+        }
+
+        .premium-dashboard-v2 .page-container {
+          max-width: 1280px;
+        }
+
+        .premium-dashboard-v2 p,
+        .premium-dashboard-v2 small,
+        .premium-dashboard-v2 span,
+        .premium-dashboard-v2 button {
+          font-size: 15px;
+          line-height: 1.65;
+        }
+
+        .premium-dashboard-v2 .section-eyebrow,
+        .premium-dashboard-v2 .hero-kicker,
+        .premium-dashboard-v2 .hero-action-cards span,
+        .premium-dashboard-v2 .command-top span,
+        .premium-dashboard-v2 .command-footer span,
+        .premium-dashboard-v2 .score-header span,
+        .premium-dashboard-v2 .score-footer span,
+        .premium-dashboard-v2 .status-badge {
+          font-size: 13px;
+          line-height: 1.35;
+        }
+
+        .premium-dashboard-v2 .hero-copy > p,
+        .premium-dashboard-v2 .strategy-card > p:not(.section-eyebrow),
+        .premium-dashboard-v2 .feedback-list p,
+        .premium-dashboard-v2 .empty-panel p {
+          color: #dbeafe;
+          font-size: 16px;
+          line-height: 1.75;
+        }
+
+        .premium-dashboard-v2 .stat-tile small,
+        .premium-dashboard-v2 .metric-copy span,
+        .premium-dashboard-v2 .session-main p,
+        .premium-dashboard-v2 .hero-action-cards small {
+          color: #c7d2fe;
+          font-size: 15px;
+          line-height: 1.65;
+        }
+
+        .premium-dashboard-v2 .stat-tile p,
+        .premium-dashboard-v2 .metric-copy strong,
+        .premium-dashboard-v2 .session-main h3 {
+          font-size: 17px;
+        }
+
+        .premium-dashboard-v2 .hero-action-cards strong {
+          font-size: 25px;
+          line-height: 1.15;
+        }
+
+        .premium-dashboard-v2 .command-grid span {
+          color: #dbeafe;
+          font-size: 14px;
+        }
+
+        .premium-dashboard-v2 .metric-row,
+        .premium-dashboard-v2 .session-row,
+        .premium-dashboard-v2 .feedback-list div {
+          background:
+            linear-gradient(135deg, rgba(255, 255, 255, 0.16), rgba(96, 165, 250, 0.08)),
+            rgba(15, 23, 42, 0.34);
+        }
+
+        .premium-dashboard-v2 .bento-grid,
+        .premium-dashboard-v2 .performance-grid,
+        .premium-dashboard-v2 .sessions-panel {
+          gap: 18px;
+        }
+
         @media (max-width: 1100px) {
           .bento-grid {
             grid-template-columns: repeat(2, minmax(0, 1fr));

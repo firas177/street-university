@@ -5,30 +5,8 @@ import { usePathname, useRouter } from "next/navigation";
 import { getMe } from "../lib/api";
 
 function NavItem({ label, active, onClick }) {
-  const [hovered, setHovered] = useState(false);
-
   return (
-    <button
-      onClick={onClick}
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
-      style={{
-        padding: "10px 14px",
-        borderRadius: "14px",
-        border: active ? "1px solid #bfdbfe" : "1px solid #cbd5e1",
-        background: active
-          ? "linear-gradient(135deg, #eff6ff, #ffffff)"
-          : hovered
-          ? "#f8fafc"
-          : "#ffffff",
-        color: active ? "#1d4ed8" : "#0f172a",
-        cursor: "pointer",
-        fontWeight: active ? "700" : "600",
-        transition: "all 0.2s ease",
-        boxShadow: hovered ? "0 8px 20px rgba(15, 23, 42, 0.06)" : "none",
-        whiteSpace: "nowrap",
-      }}
-    >
+    <button className={`nav-item ${active ? "active" : ""}`} onClick={onClick}>
       {label}
     </button>
   );
@@ -117,66 +95,17 @@ export default function Navbar() {
   };
 
   return (
-    <header
-      style={{
-        position: "sticky",
-        top: 0,
-        zIndex: 50,
-        backdropFilter: "blur(12px)",
-        background: "rgba(255,255,255,0.85)",
-        borderBottom: "1px solid rgba(226,232,240,0.9)",
-      }}
-    >
-      <div
-        style={{
-          maxWidth: "1200px",
-          margin: "0 auto",
-          padding: "16px 20px",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          gap: "16px",
-          flexWrap: "wrap",
-        }}
-      >
-        <div
-          onClick={handleBrandClick}
-          style={{
-            cursor: "pointer",
-            display: "flex",
-            flexDirection: "column",
-            gap: "2px",
-          }}
-        >
-          <span
-            style={{
-              fontSize: "1.1rem",
-              fontWeight: 800,
-              color: "#0f172a",
-              lineHeight: 1.1,
-            }}
-          >
-            Street University
+    <header className="nav-shell">
+      <div className="nav-inner">
+        <button className="brand" onClick={handleBrandClick}>
+          <span className="brand-mark">SU</span>
+          <span>
+            <strong>Street University</strong>
+            <small>AI-Powered Soft Skills</small>
           </span>
-          <span
-            style={{
-              fontSize: "0.82rem",
-              color: "#475569",
-              lineHeight: 1.1,
-            }}
-          >
-            AI-Powered Soft Skills
-          </span>
-        </div>
+        </button>
 
-        <nav
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: "10px",
-            flexWrap: "wrap",
-          }}
-        >
+        <nav className="nav-links">
           {links.map((link) => (
             <NavItem
               key={link.path}
@@ -187,25 +116,154 @@ export default function Navbar() {
           ))}
 
           {isAuthenticated && (
-            <button
-              onClick={handleLogout}
-              style={{
-                padding: "10px 14px",
-                borderRadius: "14px",
-                border: "1px solid #fecaca",
-                background: "#fff1f2",
-                color: "#b91c1c",
-                cursor: "pointer",
-                fontWeight: 700,
-                transition: "all 0.2s ease",
-                whiteSpace: "nowrap",
-              }}
-            >
+            <button onClick={handleLogout} className="logout-btn">
               Déconnexion
             </button>
           )}
         </nav>
       </div>
+
+      <style jsx>{`
+        .nav-shell {
+          position: sticky;
+          top: 0;
+          z-index: 50;
+          border-bottom: 1px solid rgba(147, 197, 253, 0.18);
+          background:
+            linear-gradient(135deg, rgba(3, 7, 18, 0.86), rgba(15, 23, 42, 0.76)),
+            rgba(15, 23, 42, 0.82);
+          backdrop-filter: blur(18px);
+          box-shadow: 0 18px 50px rgba(2, 6, 23, 0.22);
+        }
+
+        .nav-inner {
+          max-width: 1280px;
+          margin: 0 auto;
+          padding: 14px 20px;
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 18px;
+        }
+
+        .brand {
+          border: 0;
+          background: transparent;
+          color: #ffffff;
+          display: inline-flex;
+          align-items: center;
+          gap: 12px;
+          cursor: pointer;
+          text-align: left;
+          min-width: 230px;
+        }
+
+        .brand-mark {
+          display: grid;
+          place-items: center;
+          width: 42px;
+          height: 42px;
+          border-radius: 16px;
+          background: linear-gradient(135deg, #2563eb, #22d3ee);
+          color: #ffffff;
+          font-size: 13px;
+          font-weight: 950;
+          box-shadow: 0 16px 34px rgba(37, 99, 235, 0.24);
+        }
+
+        .brand strong {
+          display: block;
+          color: #ffffff;
+          font-size: 17px;
+          line-height: 1.2;
+          font-weight: 950;
+        }
+
+        .brand small {
+          display: block;
+          margin-top: 3px;
+          color: #bfdbfe;
+          font-size: 13px;
+          line-height: 1.3;
+          font-weight: 650;
+        }
+
+        .nav-links {
+          display: flex;
+          align-items: center;
+          justify-content: flex-end;
+          gap: 8px;
+          flex-wrap: wrap;
+        }
+
+        .nav-item,
+        .logout-btn {
+          min-height: 40px;
+          border-radius: 999px;
+          padding: 9px 13px;
+          border: 1px solid rgba(147, 197, 253, 0.2);
+          background: rgba(255, 255, 255, 0.08);
+          color: #e0f2fe;
+          cursor: pointer;
+          font-size: 14px;
+          line-height: 1.3;
+          font-weight: 850;
+          transition: transform 0.18s ease, background 0.2s ease, border-color 0.2s ease;
+          white-space: nowrap;
+        }
+
+        .nav-item:hover,
+        .logout-btn:hover {
+          transform: translateY(-1px);
+          border-color: rgba(34, 211, 238, 0.55);
+          background: rgba(96, 165, 250, 0.16);
+        }
+
+        .nav-item.active {
+          background: linear-gradient(135deg, #ffffff, #bfdbfe);
+          color: #0f172a;
+          border-color: transparent;
+        }
+
+        .logout-btn {
+          background: rgba(127, 29, 29, 0.3);
+          color: #fecaca;
+          border-color: rgba(252, 165, 165, 0.35);
+        }
+
+        @media (max-width: 860px) {
+          .nav-inner {
+            align-items: flex-start;
+            flex-direction: column;
+          }
+
+          .nav-links {
+            width: 100%;
+            justify-content: flex-start;
+          }
+        }
+
+        @media (max-width: 520px) {
+          .nav-inner {
+            padding: 12px;
+          }
+
+          .brand {
+            min-width: 0;
+          }
+
+          .nav-links {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+          }
+
+          .nav-item,
+          .logout-btn {
+            width: 100%;
+            white-space: normal;
+          }
+        }
+      `}</style>
     </header>
   );
 }
