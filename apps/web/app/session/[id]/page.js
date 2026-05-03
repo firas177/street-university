@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Navbar from "../../components/Navbar";
 import VoiceMessageBox from "../../components/ui/VoiceMessageBox";
@@ -50,6 +50,73 @@ function formatScore(value) {
   return String(value);
 }
 
+const DEFAULT_SENTIMENT_MODEL =
+  "lxyuan/distilbert-base-multilingual-cased-sentiments-student";
+
+function formatSentimentLabel(value) {
+  if (!value) return "Non disponible";
+  const normalized = String(value).toLowerCase();
+  if (normalized === "positive") return "Positif";
+  if (normalized === "negative") return "Négatif";
+  if (normalized === "neutral") return "Neutre";
+  return String(value);
+}
+
+function formatVoiceSentimentScore(value) {
+  if (value === null || value === undefined || value === "") return "N/A";
+  const num = Number(value);
+  if (Number.isNaN(num)) return "N/A";
+  if (num > 0) return `+${num.toFixed(1)}`;
+  return num.toFixed(1);
+}
+
+function formatSentimentConfidence(value) {
+  if (value === null || value === undefined || value === "") return null;
+  const num = Number(value);
+  if (Number.isNaN(num)) return null;
+  return num.toFixed(2);
+}
+
+function getSentimentToneClass(value) {
+  const normalized = String(value || "").toLowerCase();
+  if (normalized === "positive") return "positive";
+  if (normalized === "negative") return "negative";
+  if (normalized === "neutral") return "neutral";
+  return "empty";
+}
+
+function findLatestUserSentimentMessage(msgs) {
+  if (!Array.isArray(msgs)) return null;
+  for (let i = msgs.length - 1; i >= 0; i -= 1) {
+    const m = msgs[i];
+    if (m.role !== "user") continue;
+    if (
+      m.sentiment_label ||
+      (m.sentiment_score !== undefined && m.sentiment_score !== null) ||
+      (m.sentiment_confidence !== undefined && m.sentiment_confidence !== null) ||
+      m.sentiment_source ||
+      m.sentiment_model
+    ) {
+      return m;
+    }
+  }
+  return null;
+}
+
+function resolveSentimentSourceDisplay(feedback, msg) {
+  const vt = feedback?.voice_transcription;
+  if (typeof vt === "string" && vt.trim()) {
+    const t = vt.trim();
+    return t.length > 180 ? `${t.slice(0, 177)}…` : t;
+  }
+  const s = msg?.sentiment_source || feedback?.sentiment_source;
+  if (typeof s === "string" && s.trim()) return s.trim();
+  return "Transcription vocale";
+}
+
+const SENTIMENT_IMPACT_RATING =
+  "Cette analyse complète le feedback IA et ajuste légèrement les scores de confiance, communication et professionnalisme.";
+
 export default function SessionPage() {
   const router = useRouter();
   const params = useParams();
@@ -77,6 +144,11 @@ export default function SessionPage() {
   const [feedback, setFeedback] = useState(null);
   const [feedbackLoading, setFeedbackLoading] = useState(false);
   const [feedbackError, setFeedbackError] = useState("");
+
+  const latestSentimentMessage = useMemo(
+    () => findLatestUserSentimentMessage(messages),
+    [messages]
+  );
 
   const status = sessionData?.status || "unknown";
 
@@ -575,6 +647,13 @@ export default function SessionPage() {
                 ) : (
                   messages.map((message) => {
                     const isUser = message.role === "user";
+                    const confStr = formatSentimentConfidence(
+                      message.sentiment_confidence
+                    );
+                    const showVoiceSentimentBadge =
+                      isUser &&
+                      (message.sentiment_label ||
+                        confStr !== null);
 
                     return (
                       <div
@@ -589,6 +668,19 @@ export default function SessionPage() {
                           }`}
                         >
                           <strong>{isUser ? "Vous" : "Assistant"}</strong>
+                          {showVoiceSentimentBadge && (
+                            <div
+                              className={`message-voice-badge ${getSentimentToneClass(
+                                message.sentiment_label
+                              )}`}
+                            >
+                              Sentiment vocal :{" "}
+                              {message.sentiment_label
+                                ? formatSentimentLabel(message.sentiment_label)
+                                : "Indéterminé"}
+                              {confStr !== null ? ` · confiance ${confStr}` : ""}
+                            </div>
+                          )}
                           <div className="message-content">
                             {message.content}
                           </div>
@@ -690,6 +782,95 @@ export default function SessionPage() {
                           </strong>
                         </div>
                       </div>
+
+                      <section
+                        className="sentiment-model-card"
+                        aria-labelledby="session-sentiment-model-title"
+                      >
+                        <header className="jury-head">
+                          <p className="jury-eyebrow">Modèle de sentiment</p>
+                          <h2
+                            id="session-sentiment-model-title"
+                            className="jury-title"
+                          >
+                            Résultat du modèle de sentiment
+                          </h2>
+                          <p className="jury-lead">
+                            Indicateurs issus de l’analyse vocale et des messages
+                            utilisateur annotés par le modèle.
+                          </p>
+                        </header>
+                        <dl className="jury-grid">
+                          <div className="jury-row">
+                            <dt>Sentiment détecté</dt>
+                            <dd>
+                              <span
+                                className={`sentiment-label-badge ${getSentimentToneClass(
+                                  feedback.voice_sentiment_label ||
+                                    latestSentimentMessage?.sentiment_label
+                                )}`}
+                              >
+                                {formatSentimentLabel(
+                                  feedback.voice_sentiment_label ||
+                                    latestSentimentMessage?.sentiment_label
+                                )}
+                              </span>
+                            </dd>
+                          </div>
+                          <div className="jury-row">
+                            <dt>Score sentiment</dt>
+                            <dd className="jury-value-strong">
+                              {formatVoiceSentimentScore(
+                                feedback.voice_sentiment_score ??
+                                  latestSentimentMessage?.sentiment_score
+                              )}
+                            </dd>
+                          </div>
+                          <div className="jury-row">
+                            <dt>Confiance du modèle</dt>
+                            <dd>
+                              {(() => {
+                                const c =
+                                  latestSentimentMessage?.sentiment_confidence ??
+                                  feedback.voice_sentiment_confidence ??
+                                  feedback.sentiment_confidence;
+                                const f = formatSentimentConfidence(c);
+                                return f !== null ? f : "Non disponible";
+                              })()}
+                            </dd>
+                          </div>
+                          <div className="jury-row">
+                            <dt>Source</dt>
+                            <dd className="jury-value-multiline">
+                              {resolveSentimentSourceDisplay(
+                                feedback,
+                                latestSentimentMessage
+                              )}
+                            </dd>
+                          </div>
+                          <div className="jury-row">
+                            <dt>Modèle</dt>
+                            <dd className="jury-value-code">
+                              {latestSentimentMessage?.sentiment_model ||
+                                feedback.sentiment_model ||
+                                DEFAULT_SENTIMENT_MODEL}
+                            </dd>
+                          </div>
+                          <div className="jury-row jury-row-span">
+                            <dt>Résumé</dt>
+                            <dd className="jury-value-multiline">
+                              {feedback.voice_sentiment_summary ||
+                                "Non disponible"}
+                            </dd>
+                          </div>
+                          <div className="jury-row jury-row-span jury-impact">
+                            <dt>Impact sur le rating</dt>
+                            <dd className="jury-value-multiline">
+                              {SENTIMENT_IMPACT_RATING}
+                            </dd>
+                          </div>
+                        </dl>
+                      </section>
 
                       <div className="feedback-text-grid">
                         <div className="feedback-text-box">
@@ -1265,7 +1446,8 @@ export default function SessionPage() {
         .loading-box,
         .session-header-card,
         .session-chat-card,
-        .feedback-card {
+        .feedback-card,
+        .sentiment-model-card {
           border: 1px solid rgba(147, 197, 253, 0.22);
           background:
             linear-gradient(145deg, rgba(15, 23, 42, 0.82), rgba(30, 41, 59, 0.52)),
@@ -1274,6 +1456,176 @@ export default function SessionPage() {
             0 28px 90px rgba(2, 6, 23, 0.28),
             inset 0 1px 0 rgba(255, 255, 255, 0.08);
           backdrop-filter: blur(18px);
+        }
+
+        .sentiment-model-card {
+          padding: 24px;
+          border-radius: 24px;
+          margin-bottom: 22px;
+        }
+
+        .jury-head {
+          margin-bottom: 20px;
+        }
+
+        .jury-eyebrow {
+          margin: 0 0 8px;
+          color: #93c5fd;
+          font-size: 13px;
+          font-weight: 900;
+          letter-spacing: 0.1em;
+          text-transform: uppercase;
+        }
+
+        .jury-title {
+          margin: 0;
+          color: #ffffff;
+          font-size: clamp(20px, 2.4vw, 26px);
+          font-weight: 950;
+          line-height: 1.2;
+        }
+
+        .jury-lead {
+          margin: 12px 0 0;
+          color: #dbeafe;
+          font-size: 16px;
+          line-height: 1.7;
+          max-width: 820px;
+        }
+
+        .jury-grid {
+          margin: 0;
+          display: flex;
+          flex-direction: column;
+          gap: 12px;
+        }
+
+        .jury-row {
+          display: grid;
+          grid-template-columns: minmax(160px, 220px) minmax(0, 1fr);
+          gap: 14px 18px;
+          align-items: center;
+          padding: 14px 16px;
+          border-radius: 16px;
+          border: 1px solid rgba(147, 197, 253, 0.2);
+          background:
+            linear-gradient(135deg, rgba(255, 255, 255, 0.1), rgba(96, 165, 250, 0.06)),
+            rgba(15, 23, 42, 0.35);
+        }
+
+        .jury-row-span {
+          grid-template-columns: 1fr;
+          align-items: start;
+        }
+
+        .jury-row-span dt {
+          margin-bottom: 4px;
+        }
+
+        .jury-impact {
+          border-color: rgba(34, 211, 238, 0.35);
+        }
+
+        .jury-row dt {
+          margin: 0;
+          color: #bfdbfe;
+          font-size: 15px;
+          font-weight: 800;
+        }
+
+        .jury-row dd {
+          margin: 0;
+          color: #f1f5f9;
+          font-size: 16px;
+          line-height: 1.65;
+        }
+
+        .jury-value-strong {
+          font-size: 20px;
+          font-weight: 950;
+          color: #ffffff;
+        }
+
+        .jury-value-multiline {
+          white-space: pre-wrap;
+          word-break: break-word;
+        }
+
+        .jury-value-code {
+          font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
+            "Liberation Mono", "Courier New", monospace;
+          font-size: 14px;
+          line-height: 1.55;
+          color: #e0f2fe;
+        }
+
+        .sentiment-label-badge {
+          display: inline-flex;
+          align-items: center;
+          min-height: 36px;
+          padding: 8px 14px;
+          border-radius: 999px;
+          font-size: 15px;
+          font-weight: 900;
+        }
+
+        .sentiment-label-badge.positive {
+          color: #14532d;
+          background: #bbf7d0;
+          border: 1px solid #4ade80;
+        }
+
+        .sentiment-label-badge.negative {
+          color: #7f1d1d;
+          background: #fecaca;
+          border: 1px solid #f87171;
+        }
+
+        .sentiment-label-badge.neutral {
+          color: #1e293b;
+          background: #e2e8f0;
+          border: 1px solid #94a3b8;
+        }
+
+        .sentiment-label-badge.empty {
+          color: #e2e8f0;
+          background: rgba(15, 23, 42, 0.6);
+          border: 1px solid rgba(148, 163, 184, 0.45);
+        }
+
+        .message-voice-badge {
+          margin-top: 10px;
+          width: fit-content;
+          max-width: 100%;
+          padding: 8px 12px;
+          border-radius: 999px;
+          font-size: 14px;
+          font-weight: 800;
+          line-height: 1.4;
+        }
+
+        .message-bubble.user .message-voice-badge.positive {
+          background: rgba(255, 255, 255, 0.95);
+          color: #14532d;
+          border: 1px solid #86efac;
+        }
+
+        .message-bubble.user .message-voice-badge.negative {
+          background: rgba(255, 255, 255, 0.95);
+          color: #7f1d1d;
+          border: 1px solid #fca5a5;
+        }
+
+        .message-bubble.user .message-voice-badge.neutral {
+          background: rgba(255, 255, 255, 0.92);
+          color: #1e293b;
+          border: 1px solid #cbd5e1;
+        }
+
+        .message-bubble.user .message-voice-badge.empty {
+          background: rgba(255, 255, 255, 0.88);
+          color: #0f172a;
+          border: 1px solid rgba(255, 255, 255, 0.5);
         }
 
         .loading-title,
@@ -1307,20 +1659,72 @@ export default function SessionPage() {
         .complete-btn,
         .send-button,
         .performance-btn {
-          min-height: 46px;
-          font-size: 15px;
+          appearance: none;
+          font-family: inherit;
+          min-height: 48px;
+          font-size: 16px;
+          border-radius: 999px;
           box-shadow: 0 14px 34px rgba(2, 6, 23, 0.2);
         }
 
+        .secondary-btn:focus-visible,
+        .complete-btn:focus-visible,
+        .send-button:focus-visible,
+        .performance-btn:focus-visible {
+          outline: 2px solid #38bdf8;
+          outline-offset: 3px;
+        }
+
         .secondary-btn {
-          border-color: rgba(147, 197, 253, 0.26);
-          background: rgba(255, 255, 255, 0.1);
+          border: 1px solid rgba(147, 197, 253, 0.26);
+          background: linear-gradient(135deg, rgba(255, 255, 255, 0.12), rgba(96, 165, 250, 0.08));
           color: #ffffff;
+        }
+
+        .secondary-btn:hover:not(:disabled) {
+          transform: translateY(-2px);
+          border-color: rgba(34, 211, 238, 0.55);
         }
 
         .complete-btn,
         .send-button {
-          background: linear-gradient(135deg, #2563eb, #14b8a6);
+          background: linear-gradient(135deg, #ffffff 0%, #93c5fd 45%, #22d3ee 100%);
+          color: #0f172a;
+          border: none;
+          font-weight: 900;
+        }
+
+        .complete-btn:hover:not(:disabled),
+        .send-button:hover:not(:disabled) {
+          transform: translateY(-2px);
+          box-shadow: 0 20px 48px rgba(37, 99, 235, 0.35);
+        }
+
+        .performance-btn {
+          background: linear-gradient(135deg, #1e293b, #0f172a);
+          color: #f8fafc;
+          border: 1px solid rgba(147, 197, 253, 0.35);
+        }
+
+        .performance-btn:hover {
+          transform: translateY(-2px);
+          border-color: rgba(34, 211, 238, 0.65);
+        }
+
+        .overall-score {
+          background: linear-gradient(135deg, rgba(255, 255, 255, 0.12), rgba(96, 165, 250, 0.08));
+          border: 1px solid rgba(147, 197, 253, 0.28);
+          color: #e0f2fe;
+        }
+
+        .overall-score span {
+          color: #bfdbfe;
+          font-size: 13px;
+        }
+
+        .overall-score strong {
+          color: #ffffff;
+          font-size: 28px;
         }
 
         .timer-box,
@@ -1446,6 +1850,10 @@ export default function SessionPage() {
 
           .overall-score {
             width: 100%;
+          }
+
+          .jury-row {
+            grid-template-columns: 1fr;
           }
         }
       `}</style>

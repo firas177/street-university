@@ -359,13 +359,16 @@ export default function CVPage() {
       <style jsx>{`
         .page-root {
           min-height: 100vh;
-          background: linear-gradient(to bottom, #f8fafc, #e2e8f0);
+          background:
+            radial-gradient(circle at 10% 0%, rgba(37, 99, 235, 0.32), transparent 30%),
+            radial-gradient(circle at 92% 8%, rgba(124, 58, 237, 0.22), transparent 28%),
+            linear-gradient(180deg, #030712 0%, #0f172a 58%, #e8eefc 100%);
         }
 
         .cv-shell {
           max-width: 1100px;
           margin: 0 auto;
-          padding: 32px 20px 60px;
+          padding: 34px 20px 72px;
         }
 
         .top-actions {
@@ -378,47 +381,60 @@ export default function CVPage() {
         .upload-card,
         .cv-card,
         .profile-card {
-          background: #ffffff;
-          border: 1px solid #e2e8f0;
+          border: 1px solid rgba(147, 197, 253, 0.24);
           border-radius: 28px;
           padding: 28px;
           margin-bottom: 20px;
-          box-shadow: 0 18px 40px rgba(15, 23, 42, 0.06);
+          background:
+            linear-gradient(145deg, rgba(15, 23, 42, 0.88), rgba(30, 41, 59, 0.52)),
+            rgba(255, 255, 255, 0.07);
+          box-shadow: 0 28px 90px rgba(2, 6, 23, 0.32);
+          backdrop-filter: blur(18px);
         }
 
         .eyebrow {
           margin: 0 0 8px;
-          color: #2563eb;
+          color: #93c5fd;
           text-transform: uppercase;
-          letter-spacing: 0.06em;
+          letter-spacing: 0.08em;
           font-weight: 900;
           font-size: 13px;
+          line-height: 1.4;
         }
 
         h1 {
           margin: 0;
-          color: #0f172a;
+          color: #ffffff;
           font-size: clamp(34px, 5vw, 54px);
-          line-height: 1;
+          line-height: 1.05;
+          font-weight: 950;
         }
 
         h2 {
           margin: 0 0 16px;
-          color: #0f172a;
-          font-size: 26px;
+          color: #ffffff;
+          font-size: 24px;
+          font-weight: 950;
         }
 
         h3 {
           margin: 0 0 10px;
-          color: #0f172a;
+          color: #f1f5f9;
           font-size: 18px;
+          font-weight: 900;
         }
 
         .description,
-        .hint,
+        .hint {
+          color: #dbeafe;
+          font-size: 16px;
+          line-height: 1.75;
+        }
+
         .muted {
-          color: #64748b;
-          line-height: 1.7;
+          color: #c7d2fe;
+          font-size: 15px;
+          line-height: 1.65;
         }
 
         .upload-form {
@@ -431,41 +447,71 @@ export default function CVPage() {
         .file-input {
           flex: 1;
           min-width: 260px;
-          border: 1px solid #cbd5e1;
-          border-radius: 14px;
-          padding: 12px;
-          background: #f8fafc;
+          border: 1px solid rgba(147, 197, 253, 0.35);
+          border-radius: 16px;
+          padding: 14px 16px;
+          background: rgba(255, 255, 255, 0.96);
+          color: #0f172a;
+          font-size: 15px;
         }
 
         .primary-btn,
         .secondary-btn,
         .danger-btn {
-          border: none;
-          border-radius: 14px;
-          padding: 12px 18px;
-          font-weight: 800;
+          appearance: none;
+          font-family: inherit;
+          border-radius: 999px;
+          padding: 14px 22px;
+          font-size: 16px;
+          font-weight: 850;
           cursor: pointer;
+          min-height: 50px;
+          transition: transform 0.18s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+        }
+
+        .primary-btn:focus-visible,
+        .secondary-btn:focus-visible,
+        .danger-btn:focus-visible {
+          outline: 2px solid #38bdf8;
+          outline-offset: 3px;
         }
 
         .primary-btn {
-          background: #2563eb;
-          color: #ffffff;
+          border: none;
+          background: linear-gradient(135deg, #ffffff 0%, #93c5fd 50%, #22d3ee 100%);
+          color: #0f172a;
+          box-shadow: 0 18px 44px rgba(37, 99, 235, 0.3);
+        }
+
+        .primary-btn:hover:not(:disabled) {
+          transform: translateY(-2px);
         }
 
         .secondary-btn {
-          background: #ffffff;
-          color: #0f172a;
-          border: 1px solid #cbd5e1;
+          background: linear-gradient(135deg, rgba(255, 255, 255, 0.12), rgba(96, 165, 250, 0.08));
+          color: #f8fafc;
+          border: 1px solid rgba(147, 197, 253, 0.35);
+        }
+
+        .secondary-btn:hover:not(:disabled) {
+          transform: translateY(-2px);
+          border-color: rgba(34, 211, 238, 0.55);
         }
 
         .danger-btn {
-          background: #ef4444;
+          background: linear-gradient(135deg, rgba(185, 28, 28, 0.85), rgba(127, 29, 29, 0.75));
           color: #ffffff;
+          border: 1px solid rgba(252, 165, 165, 0.45);
+          box-shadow: 0 14px 36px rgba(127, 29, 29, 0.25);
+        }
+
+        .danger-btn:hover:not(:disabled) {
+          transform: translateY(-2px);
         }
 
         .primary-btn:disabled,
         .danger-btn:disabled {
-          opacity: 0.7;
+          opacity: 0.65;
           cursor: not-allowed;
         }
 
@@ -473,27 +519,29 @@ export default function CVPage() {
         .success-box,
         .error-box {
           border-radius: 18px;
-          padding: 16px;
+          padding: 16px 18px;
           margin-bottom: 20px;
-          font-weight: 700;
+          font-weight: 650;
+          font-size: 15px;
+          line-height: 1.65;
         }
 
         .info-box {
-          background: #eff6ff;
-          border: 1px solid #bfdbfe;
-          color: #1d4ed8;
+          background: rgba(30, 58, 138, 0.45);
+          border: 1px solid rgba(147, 197, 253, 0.35);
+          color: #dbeafe;
         }
 
         .success-box {
-          background: #ecfdf5;
-          border: 1px solid #bbf7d0;
-          color: #166534;
+          background: rgba(22, 101, 52, 0.35);
+          border: 1px solid rgba(74, 222, 128, 0.35);
+          color: #bbf7d0;
         }
 
         .error-box {
-          background: #fee2e2;
-          border: 1px solid #fecaca;
-          color: #991b1b;
+          background: rgba(127, 29, 29, 0.4);
+          border: 1px solid rgba(252, 165, 165, 0.4);
+          color: #fecaca;
         }
 
         .cv-header {
@@ -512,23 +560,25 @@ export default function CVPage() {
 
         .raw-text {
           margin-top: 20px;
-          background: #f8fafc;
-          border: 1px solid #e2e8f0;
+          background: rgba(15, 23, 42, 0.45);
+          border: 1px solid rgba(147, 197, 253, 0.2);
           border-radius: 18px;
           padding: 16px;
         }
 
         .raw-text summary {
           cursor: pointer;
-          font-weight: 800;
-          color: #0f172a;
+          font-weight: 850;
+          color: #e0f2fe;
+          font-size: 15px;
         }
 
         pre {
           white-space: pre-wrap;
           word-break: break-word;
-          color: #334155;
+          color: #cbd5e1;
           line-height: 1.7;
+          font-size: 14px;
           max-height: 350px;
           overflow: auto;
         }
@@ -544,8 +594,8 @@ export default function CVPage() {
         }
 
         .profile-box {
-          background: #f8fafc;
-          border: 1px solid #e2e8f0;
+          background: rgba(15, 23, 42, 0.5);
+          border: 1px solid rgba(147, 197, 253, 0.2);
           border-radius: 20px;
           padding: 18px;
         }
@@ -555,16 +605,18 @@ export default function CVPage() {
         }
 
         .profile-box p {
-          color: #475569;
-          line-height: 1.7;
+          color: #dbeafe;
+          line-height: 1.75;
+          font-size: 15px;
           margin: 6px 0;
         }
 
         ul {
           margin: 0;
           padding-left: 18px;
-          color: #475569;
-          line-height: 1.7;
+          color: #dbeafe;
+          line-height: 1.75;
+          font-size: 15px;
         }
 
         .skills-grid {
@@ -574,21 +626,22 @@ export default function CVPage() {
         }
 
         .skill-category {
-          background: #ffffff;
-          border: 1px solid #e2e8f0;
+          background: rgba(15, 23, 42, 0.55);
+          border: 1px solid rgba(147, 197, 253, 0.18);
           border-radius: 16px;
           padding: 14px;
         }
 
         .skill-category strong {
           display: block;
-          color: #0f172a;
+          color: #ffffff;
           margin-bottom: 8px;
+          font-size: 16px;
         }
 
         @media (max-width: 700px) {
           .cv-shell {
-            padding: 22px 12px 50px;
+            padding: 22px 14px 56px;
           }
 
           .hero-card,

@@ -178,20 +178,36 @@ export default function ProfilePage() {
         }
 
         .action-panel button {
-          min-height: 50px;
-          border: 1px solid rgba(147, 197, 253, 0.28);
-          border-radius: 16px;
-          padding: 12px 16px;
-          background: linear-gradient(135deg, rgba(255, 255, 255, 0.16), rgba(96, 165, 250, 0.1));
-          color: #ffffff;
-          font-size: 15px;
+          appearance: none;
+          font-family: inherit;
+          min-height: 52px;
+          border: 1px solid rgba(147, 197, 253, 0.32);
+          border-radius: 999px;
+          padding: 14px 20px;
+          background: linear-gradient(135deg, rgba(255, 255, 255, 0.14), rgba(96, 165, 250, 0.1));
+          color: #f8fafc;
+          font-size: 16px;
           font-weight: 900;
           cursor: pointer;
+          box-shadow: 0 12px 32px rgba(2, 6, 23, 0.22);
+          transition: transform 0.18s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .action-panel button:focus-visible {
+          outline: 2px solid #38bdf8;
+          outline-offset: 3px;
+        }
+
+        .action-panel button:hover {
+          transform: translateY(-2px);
+          border-color: rgba(34, 211, 238, 0.55);
         }
 
         .action-panel button:first-child {
           background: linear-gradient(135deg, #ffffff, #93c5fd 54%, #22d3ee);
           color: #0f172a;
+          border-color: transparent;
+          box-shadow: 0 18px 44px rgba(37, 99, 235, 0.3);
         }
 
         .plan-card {
@@ -243,8 +259,8 @@ export default function ProfilePage() {
 
         .info-grid span {
           display: block;
-          color: #93c5fd;
-          font-size: 14px;
+          color: #bfdbfe;
+          font-size: 15px;
           font-weight: 900;
           margin-bottom: 10px;
         }

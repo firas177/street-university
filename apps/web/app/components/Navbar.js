@@ -4,14 +4,6 @@ import { useEffect, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { getMe } from "../lib/api";
 
-function NavItem({ label, active, onClick }) {
-  return (
-    <button className={`nav-item ${active ? "active" : ""}`} onClick={onClick}>
-      {label}
-    </button>
-  );
-}
-
 export default function Navbar() {
   const router = useRouter();
   const pathname = usePathname();
@@ -97,7 +89,7 @@ export default function Navbar() {
   return (
     <header className="nav-shell">
       <div className="nav-inner">
-        <button className="brand" onClick={handleBrandClick}>
+        <button type="button" className="brand" onClick={handleBrandClick}>
           <span className="brand-mark">SU</span>
           <span>
             <strong>Street University</strong>
@@ -106,17 +98,23 @@ export default function Navbar() {
         </button>
 
         <nav className="nav-links">
-          {links.map((link) => (
-            <NavItem
-              key={link.path}
-              label={link.label}
-              active={pathname === link.path}
-              onClick={() => router.push(link.path)}
-            />
-          ))}
+          {links.map((link) => {
+            const active = pathname === link.path;
+            return (
+              <button
+                key={link.path}
+                type="button"
+                className={`nav-item${active ? " active" : ""}`}
+                onClick={() => router.push(link.path)}
+                aria-current={active ? "page" : undefined}
+              >
+                {link.label}
+              </button>
+            );
+          })}
 
           {isAuthenticated && (
-            <button onClick={handleLogout} className="logout-btn">
+            <button type="button" onClick={handleLogout} className="logout-btn">
               Déconnexion
             </button>
           )}
@@ -128,12 +126,15 @@ export default function Navbar() {
           position: sticky;
           top: 0;
           z-index: 50;
-          border-bottom: 1px solid rgba(147, 197, 253, 0.18);
+          border-bottom: 1px solid rgba(147, 197, 253, 0.22);
           background:
-            linear-gradient(135deg, rgba(3, 7, 18, 0.86), rgba(15, 23, 42, 0.76)),
-            rgba(15, 23, 42, 0.82);
-          backdrop-filter: blur(18px);
-          box-shadow: 0 18px 50px rgba(2, 6, 23, 0.22);
+            linear-gradient(180deg, rgba(15, 23, 42, 0.72) 0%, rgba(3, 7, 18, 0.88) 100%),
+            linear-gradient(135deg, rgba(2, 6, 23, 0.65), rgba(15, 23, 42, 0.45));
+          backdrop-filter: blur(20px) saturate(1.35);
+          -webkit-backdrop-filter: blur(20px) saturate(1.35);
+          box-shadow:
+            0 1px 0 rgba(255, 255, 255, 0.06) inset,
+            0 18px 50px rgba(2, 6, 23, 0.35);
         }
 
         .nav-inner {
@@ -156,19 +157,39 @@ export default function Navbar() {
           cursor: pointer;
           text-align: left;
           min-width: 230px;
+          appearance: none;
+          font-family: inherit;
+          border-radius: 16px;
+          padding: 4px 8px 4px 4px;
+          margin: -4px;
+          transition: background 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .brand:focus-visible {
+          outline: 2px solid #38bdf8;
+          outline-offset: 3px;
+        }
+
+        .brand:hover {
+          background: rgba(255, 255, 255, 0.06);
         }
 
         .brand-mark {
           display: grid;
           place-items: center;
-          width: 42px;
-          height: 42px;
-          border-radius: 16px;
-          background: linear-gradient(135deg, #2563eb, #22d3ee);
+          flex-shrink: 0;
+          width: 44px;
+          height: 44px;
+          border-radius: 50%;
+          background: linear-gradient(145deg, #3b82f6, #2563eb 40%, #06b6d4);
           color: #ffffff;
           font-size: 13px;
           font-weight: 950;
-          box-shadow: 0 16px 34px rgba(37, 99, 235, 0.24);
+          letter-spacing: 0.02em;
+          box-shadow:
+            0 0 0 1px rgba(255, 255, 255, 0.2),
+            0 12px 28px rgba(37, 99, 235, 0.45),
+            0 0 40px rgba(34, 211, 238, 0.2);
         }
 
         .brand strong {
@@ -182,9 +203,9 @@ export default function Navbar() {
         .brand small {
           display: block;
           margin-top: 3px;
-          color: #bfdbfe;
-          font-size: 13px;
-          line-height: 1.3;
+          color: #dbeafe;
+          font-size: 14px;
+          line-height: 1.45;
           font-weight: 650;
         }
 
@@ -198,37 +219,117 @@ export default function Navbar() {
 
         .nav-item,
         .logout-btn {
-          min-height: 40px;
+          -webkit-appearance: none;
+          appearance: none;
+          font-family: inherit;
+          margin: 0;
+          box-sizing: border-box;
+          border-style: solid;
+          border-width: 1px;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          text-align: center;
+          min-height: 44px;
           border-radius: 999px;
-          padding: 9px 13px;
-          border: 1px solid rgba(147, 197, 253, 0.2);
-          background: rgba(255, 255, 255, 0.08);
-          color: #e0f2fe;
+          padding: 10px 18px;
+          border-color: rgba(147, 197, 253, 0.28);
+          background: linear-gradient(160deg, rgba(255, 255, 255, 0.12) 0%, rgba(30, 58, 138, 0.25) 100%);
+          color: #f1f5f9;
           cursor: pointer;
-          font-size: 14px;
-          line-height: 1.3;
-          font-weight: 850;
-          transition: transform 0.18s ease, background 0.2s ease, border-color 0.2s ease;
+          font-size: 15px;
+          line-height: 1.4;
+          font-weight: 800;
+          text-decoration: none;
+          transition:
+            transform 0.18s ease,
+            background 0.22s ease,
+            border-color 0.22s ease,
+            box-shadow 0.22s ease,
+            color 0.2s ease;
           white-space: nowrap;
+          box-shadow:
+            0 1px 0 rgba(255, 255, 255, 0.08) inset,
+            0 8px 22px rgba(2, 6, 23, 0.35);
         }
 
-        .nav-item:hover,
-        .logout-btn:hover {
+        .nav-item::-moz-focus-inner,
+        .logout-btn::-moz-focus-inner {
+          border: 0;
+          padding: 0;
+        }
+
+        .nav-item:focus,
+        .logout-btn:focus {
+          outline: none;
+        }
+
+        .nav-item:focus-visible,
+        .logout-btn:focus-visible {
+          outline: 2px solid #22d3ee;
+          outline-offset: 3px;
+        }
+
+        .nav-item:hover:not(.active) {
           transform: translateY(-1px);
-          border-color: rgba(34, 211, 238, 0.55);
-          background: rgba(96, 165, 250, 0.16);
+          border-color: rgba(56, 189, 248, 0.55);
+          background: linear-gradient(160deg, rgba(255, 255, 255, 0.16) 0%, rgba(37, 99, 235, 0.28) 100%);
+          box-shadow:
+            0 1px 0 rgba(255, 255, 255, 0.1) inset,
+            0 10px 28px rgba(2, 6, 23, 0.4),
+            0 0 24px rgba(34, 211, 238, 0.28),
+            0 0 1px rgba(125, 211, 252, 0.8);
+          color: #ffffff;
+        }
+
+        .nav-item:active:not(.active) {
+          transform: translateY(0);
         }
 
         .nav-item.active {
-          background: linear-gradient(135deg, #ffffff, #bfdbfe);
-          color: #0f172a;
-          border-color: transparent;
+          background: linear-gradient(135deg, #f8fafc 0%, #e0f2fe 42%, #7dd3fc 100%);
+          color: #0c1222;
+          border-color: rgba(255, 255, 255, 0.65);
+          font-weight: 900;
+          box-shadow:
+            0 1px 0 rgba(255, 255, 255, 0.85) inset,
+            0 12px 36px rgba(37, 99, 235, 0.35),
+            0 0 0 1px rgba(14, 165, 233, 0.35),
+            0 0 28px rgba(56, 189, 248, 0.45);
+        }
+
+        .nav-item.active:hover {
+          transform: translateY(-1px);
+          border-color: rgba(14, 165, 233, 0.6);
+          box-shadow:
+            0 1px 0 rgba(255, 255, 255, 0.9) inset,
+            0 14px 40px rgba(37, 99, 235, 0.4),
+            0 0 32px rgba(34, 211, 238, 0.4);
         }
 
         .logout-btn {
-          background: rgba(127, 29, 29, 0.3);
+          background: linear-gradient(160deg, rgba(127, 29, 29, 0.75) 0%, rgba(30, 10, 10, 0.92) 100%);
           color: #fecaca;
-          border-color: rgba(252, 165, 165, 0.35);
+          border-color: rgba(248, 113, 113, 0.5);
+          box-shadow:
+            0 1px 0 rgba(255, 255, 255, 0.1) inset,
+            0 8px 26px rgba(69, 10, 10, 0.55),
+            0 0 0 1px rgba(127, 29, 29, 0.4);
+        }
+
+        .logout-btn:hover {
+          transform: translateY(-1px);
+          border-color: rgba(252, 165, 165, 0.85);
+          background: linear-gradient(160deg, rgba(185, 28, 28, 0.88) 0%, rgba(69, 10, 10, 0.95) 100%);
+          color: #ffffff;
+          box-shadow:
+            0 1px 0 rgba(255, 255, 255, 0.12) inset,
+            0 12px 32px rgba(127, 29, 29, 0.45),
+            0 0 20px rgba(248, 113, 113, 0.2);
+        }
+
+        .logout-btn:active {
+          transform: translateY(0);
         }
 
         @media (max-width: 860px) {

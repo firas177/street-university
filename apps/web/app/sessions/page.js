@@ -5,10 +5,6 @@ import { useRouter } from "next/navigation";
 import Navbar from "../components/Navbar";
 import Alert from "../components/ui/Alert";
 import Badge from "../components/ui/Badge";
-import Button from "../components/ui/Button";
-import Card from "../components/ui/Card";
-import SectionHeader from "../components/ui/SectionHeader";
-import StatCard from "../components/ui/StatCard";
 import { getSessions } from "../lib/api";
 
 function formatDate(dateValue) {
@@ -130,350 +126,457 @@ export default function SessionsPage() {
     };
   }, [sessions]);
 
-  if (loading) {
-    return (
-      <>
-        <Navbar />
-        <main
-          style={{
-            minHeight: "100vh",
-            background:
-              "linear-gradient(180deg, #f8fbff 0%, #eef4ff 45%, #ffffff 100%)",
-            padding: "32px 20px 60px",
-          }}
-        >
-          <div style={{ maxWidth: "1200px", margin: "0 auto" }}>
-            <Card style={{ padding: "28px", borderRadius: "28px" }}>
-              <h1
-                style={{
-                  margin: 0,
-                  color: "#0f172a",
-                  fontSize: "28px",
-                  fontWeight: "800",
-                }}
-              >
-                Chargement des sessions...
-              </h1>
-              <p
-                style={{
-                  margin: "12px 0 0",
-                  color: "#64748b",
-                  lineHeight: 1.7,
-                  fontSize: "15px",
-                }}
-              >
-                Nous récupérons votre historique de simulations.
-              </p>
-            </Card>
-          </div>
-        </main>
-      </>
-    );
-  }
-
   return (
     <>
       <Navbar />
 
-      <main
-        style={{
-          minHeight: "100vh",
-          background:
-            "linear-gradient(180deg, #f8fbff 0%, #eef4ff 45%, #ffffff 100%)",
-          padding: "32px 20px 60px",
-        }}
-      >
-        <div
-          style={{
-            maxWidth: "1200px",
-            margin: "0 auto",
-            display: "flex",
-            flexDirection: "column",
-            gap: "24px",
-          }}
-        >
+      {loading ? (
+        <main className="sessions-shell loading">
+          <div className="page-container">
+            <div className="loading-card">
+              <div className="loading-orbit" aria-hidden>
+                <span />
+              </div>
+              <p className="eyebrow">Sessions</p>
+              <h1>Chargement de votre historique</h1>
+              <p className="lead">
+                Nous récupérons vos simulations et votre dernière activité.
+              </p>
+            </div>
+          </div>
+        </main>
+      ) : (
+        <main className="sessions-shell">
+        <div className="page-container">
           {error && (
-            <Alert
-              type="error"
-              message={error}
-              style={{ borderRadius: "20px" }}
-            />
+            <Alert type="error" style={{ marginBottom: "18px", borderRadius: "18px", fontSize: "15px" }}>
+              {error}
+            </Alert>
           )}
 
-          <Card
-            style={{
-              padding: "30px",
-              borderRadius: "30px",
-              background:
-                "linear-gradient(135deg, rgba(15,23,42,0.98), rgba(30,41,59,0.96) 55%, rgba(37,99,235,0.78))",
-              border: "1px solid rgba(148,163,184,0.18)",
-              boxShadow: "0 24px 60px rgba(15,23,42,0.20)",
-              color: "#ffffff",
-            }}
-          >
-            <div
-              style={{
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "flex-start",
-                gap: "20px",
-                flexWrap: "wrap",
-              }}
-            >
-              <div style={{ maxWidth: "760px" }}>
-                <p
-                  style={{
-                    margin: 0,
-                    color: "#bfdbfe",
-                    fontSize: "13px",
-                    fontWeight: "800",
-                    letterSpacing: "0.05em",
-                    textTransform: "uppercase",
-                  }}
-                >
-                  Historique utilisateur
-                </p>
-
-                <h1
-                  style={{
-                    margin: "10px 0 12px",
-                    color: "#ffffff",
-                    fontSize: "clamp(30px, 4vw, 46px)",
-                    lineHeight: 1.05,
-                    fontWeight: "900",
-                    letterSpacing: "-0.04em",
-                  }}
-                >
-                  Mes sessions
-                </h1>
-
-                <p
-                  style={{
-                    margin: 0,
-                    color: "rgba(255,255,255,0.82)",
-                    fontSize: "16px",
-                    lineHeight: 1.8,
-                    fontWeight: "500",
-                    maxWidth: "700px",
-                  }}
-                >
-                  Retrouvez vos anciennes simulations, suivez votre progression
-                  et reprenez rapidement vos sessions actives.
-                </p>
-
-                <div
-                  style={{
-                    display: "flex",
-                    gap: "10px",
-                    flexWrap: "wrap",
-                    marginTop: "18px",
-                  }}
-                >
-                  <Badge variant="info">
-                    {stats.totalSessions} session
-                    {stats.totalSessions > 1 ? "s" : ""}
-                  </Badge>
-                  <Badge variant="completed">
-                    {stats.completionRate}% terminées
-                  </Badge>
-                  <Badge variant="active">
-                    Dernière activité : {stats.lastSessionDate}
-                  </Badge>
-                </div>
-              </div>
-
-              <div
-                style={{
-                  minWidth: "220px",
-                  display: "flex",
-                  flexDirection: "column",
-                  gap: "12px",
-                }}
-              >
-                <Button onClick={() => router.push("/scenarios")}>
-                  Nouvelle simulation
-                </Button>
-
-                <Button
-                  variant="secondary"
-                  onClick={() => router.push("/dashboard")}
-                >
-                  Retour au dashboard
-                </Button>
+          <section className="hero-card">
+            <div className="hero-copy">
+              <p className="eyebrow">Historique utilisateur</p>
+              <h1>Mes sessions</h1>
+              <p className="lead">
+                Retrouvez vos simulations, suivez votre progression et reprenez une session active en un clic.
+              </p>
+              <div className="badge-row">
+                <Badge variant="info">
+                  {stats.totalSessions} session{stats.totalSessions > 1 ? "s" : ""}
+                </Badge>
+                <Badge variant="completed">{stats.completionRate}% terminées</Badge>
+                <Badge variant="active">Dernière activité : {stats.lastSessionDate}</Badge>
               </div>
             </div>
-          </Card>
-
-          <section>
-            <SectionHeader
-              eyebrow="Vue d’ensemble"
-              title="Statistiques de sessions"
-              description="Résumé rapide de votre activité sur les simulations."
-            />
-
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
-                gap: "16px",
-              }}
-            >
-              <StatCard
-                label="Total sessions"
-                value={stats.totalSessions}
-                helpText="Toutes vos simulations enregistrées."
-                accent="blue"
-              />
-              <StatCard
-                label="Sessions terminées"
-                value={stats.completedSessions}
-                helpText="Simulations finalisées."
-                accent="green"
-              />
-              <StatCard
-                label="Sessions actives"
-                value={stats.activeSessions}
-                helpText="Simulations encore en cours."
-                accent="amber"
-              />
-              <StatCard
-                label="Taux de complétion"
-                value={`${stats.completionRate}%`}
-                helpText="Part de sessions terminées."
-                accent="slate"
-              />
+            <div className="hero-actions">
+              <button type="button" className="btn btn-primary" onClick={() => router.push("/scenarios")}>
+                Nouvelle simulation
+              </button>
+              <button type="button" className="btn btn-glass" onClick={() => router.push("/dashboard")}>
+                Retour au dashboard
+              </button>
             </div>
           </section>
 
-          <section>
-            <SectionHeader
-              eyebrow="Historique"
-              title="Toutes vos sessions"
-              description="Cliquez sur une session pour reprendre la simulation."
-            />
+          <section className="block">
+            <header className="block-head">
+              <p className="eyebrow">Vue d’ensemble</p>
+              <h2>Statistiques de sessions</h2>
+              <p className="block-desc">Résumé rapide de votre activité sur les simulations.</p>
+            </header>
+            <div className="stat-grid">
+              <article className="stat-card">
+                <span className="stat-label">Total sessions</span>
+                <strong className="stat-value">{stats.totalSessions}</strong>
+                <p className="stat-help">Toutes vos simulations enregistrées.</p>
+              </article>
+              <article className="stat-card">
+                <span className="stat-label">Sessions terminées</span>
+                <strong className="stat-value">{stats.completedSessions}</strong>
+                <p className="stat-help">Simulations finalisées.</p>
+              </article>
+              <article className="stat-card">
+                <span className="stat-label">Sessions actives</span>
+                <strong className="stat-value">{stats.activeSessions}</strong>
+                <p className="stat-help">Simulations encore en cours.</p>
+              </article>
+              <article className="stat-card">
+                <span className="stat-label">Taux de complétion</span>
+                <strong className="stat-value">{stats.completionRate}%</strong>
+                <p className="stat-help">Part de sessions terminées.</p>
+              </article>
+            </div>
+          </section>
+
+          <section className="block">
+            <header className="block-head">
+              <p className="eyebrow">Historique</p>
+              <h2>Toutes vos sessions</h2>
+              <p className="block-desc">Ouvrez une session pour reprendre la simulation.</p>
+            </header>
 
             {stats.sortedSessions.length === 0 ? (
-              <Card
-                style={{
-                  padding: "24px",
-                  borderRadius: "28px",
-                }}
-              >
-                <Alert
-                  type="info"
-                  message="Aucune session trouvée pour le moment. Lance ta première simulation depuis la page Scénarios."
-                />
-              </Card>
+              <div className="empty-wrap">
+                <Alert type="info" style={{ borderRadius: "20px", fontSize: "15px" }}>
+                  Aucune session trouvée pour le moment. Lance ta première simulation depuis la page Scénarios.
+                </Alert>
+              </div>
             ) : (
-              <div
-                style={{
-                  display: "grid",
-                  gap: "16px",
-                }}
-              >
+              <div className="session-list">
                 {stats.sortedSessions.map((session) => (
-                  <Card
-                    key={session.id}
-                    hoverable
-                    style={{
-                      padding: "22px",
-                      borderRadius: "24px",
-                    }}
-                  >
-                    <div
-                      style={{
-                        display: "flex",
-                        justifyContent: "space-between",
-                        alignItems: "flex-start",
-                        gap: "16px",
-                        flexWrap: "wrap",
-                      }}
-                    >
-                      <div style={{ flex: 1, minWidth: "260px" }}>
-                        <div
-                          style={{
-                            display: "flex",
-                            alignItems: "center",
-                            gap: "10px",
-                            flexWrap: "wrap",
-                            marginBottom: "10px",
-                          }}
-                        >
-                          <h2
-                            style={{
-                              fontSize: "1.15rem",
-                              fontWeight: 800,
-                              color: "#0f172a",
-                              margin: 0,
-                              lineHeight: 1.3,
-                            }}
-                          >
-                            {getScenarioTitle(session)}
-                          </h2>
-
-                          <Badge variant={getStatusVariant(session?.status)}>
-                            {getStatusLabel(session?.status)}
-                          </Badge>
-                        </div>
-
-                        <div
-                          style={{
-                            display: "flex",
-                            gap: "10px",
-                            flexWrap: "wrap",
-                            marginBottom: "12px",
-                          }}
-                        >
-                          <Badge variant="info">
-                            {getScenarioCategory(session)}
-                          </Badge>
-
-                          <Badge variant="default">
-                            Créée le {formatDate(session?.created_at)}
-                          </Badge>
-                        </div>
-
-                        <p
-                          style={{
-                            color: "#475569",
-                            margin: 0,
-                            lineHeight: 1.7,
-                            fontSize: "14px",
-                          }}
-                        >
-                          {getScenarioDescription(session)}
-                        </p>
+                  <article key={session.id} className="session-card">
+                    <div className="session-body">
+                      <div className="session-title-row">
+                        <h2>{getScenarioTitle(session)}</h2>
+                        <Badge variant={getStatusVariant(session?.status)}>
+                          {getStatusLabel(session?.status)}
+                        </Badge>
                       </div>
-
-                      <div
-                        style={{
-                          display: "flex",
-                          flexDirection: "column",
-                          gap: "10px",
-                          minWidth: "170px",
-                        }}
-                      >
-                        <Button
-                          onClick={() => router.push(`/session/${session.id}`)}
-                        >
-                          Reprendre
-                        </Button>
-
-                        <Button
-                          variant="secondary"
-                          onClick={() => router.push("/scenarios")}
-                        >
-                          Nouveau scénario
-                        </Button>
+                      <div className="session-meta">
+                        <Badge variant="info">{getScenarioCategory(session)}</Badge>
+                        <Badge variant="default">Créée le {formatDate(session?.created_at)}</Badge>
                       </div>
+                      <p className="session-desc">{getScenarioDescription(session)}</p>
                     </div>
-                  </Card>
+                    <div className="session-aside">
+                      <button
+                        type="button"
+                        className="btn btn-primary btn-block"
+                        onClick={() => router.push(`/session/${session.id}`)}
+                      >
+                        Reprendre
+                      </button>
+                      <button
+                        type="button"
+                        className="btn btn-glass btn-block"
+                        onClick={() => router.push("/scenarios")}
+                      >
+                        Nouveau scénario
+                      </button>
+                    </div>
+                  </article>
                 ))}
               </div>
             )}
           </section>
         </div>
       </main>
+      )}
+
+      <style jsx>{`
+        .sessions-shell {
+          min-height: 100vh;
+          background:
+            radial-gradient(circle at 8% 0%, rgba(59, 130, 246, 0.38), transparent 30%),
+            radial-gradient(circle at 92% 12%, rgba(124, 58, 237, 0.28), transparent 28%),
+            linear-gradient(180deg, #030712 0%, #0f172a 56%, #e8eefc 100%);
+          padding: 32px 20px 72px;
+          color: #f8fafc;
+        }
+
+        .sessions-shell.loading {
+          display: grid;
+          place-items: center;
+        }
+
+        .page-container {
+          max-width: 1200px;
+          margin: 0 auto;
+        }
+
+        .loading-card {
+          width: min(640px, 100%);
+          border-radius: 32px;
+          border: 1px solid rgba(147, 197, 253, 0.28);
+          padding: 40px;
+          background:
+            linear-gradient(145deg, rgba(15, 23, 42, 0.9), rgba(30, 41, 59, 0.55)),
+            rgba(255, 255, 255, 0.08);
+          box-shadow: 0 32px 90px rgba(2, 6, 23, 0.4);
+          backdrop-filter: blur(20px);
+          text-align: center;
+        }
+
+        .loading-orbit {
+          width: 56px;
+          height: 56px;
+          margin: 0 auto 20px;
+          border-radius: 18px;
+          border: 1px solid rgba(255, 255, 255, 0.2);
+          display: grid;
+          place-items: center;
+          background: rgba(255, 255, 255, 0.08);
+        }
+
+        .loading-orbit span {
+          width: 26px;
+          height: 26px;
+          border: 3px solid rgba(191, 219, 254, 0.5);
+          border-top-color: #ffffff;
+          border-radius: 999px;
+          animation: spin 0.85s linear infinite;
+        }
+
+        @keyframes spin {
+          to {
+            transform: rotate(360deg);
+          }
+        }
+
+        .eyebrow {
+          margin: 0 0 10px;
+          color: #93c5fd;
+          font-size: 13px;
+          font-weight: 900;
+          letter-spacing: 0.1em;
+          text-transform: uppercase;
+          line-height: 1.4;
+        }
+
+        .loading-card h1,
+        .hero-card h1 {
+          margin: 0;
+          font-size: clamp(28px, 4vw, 44px);
+          line-height: 1.1;
+          font-weight: 950;
+          color: #ffffff;
+        }
+
+        .lead,
+        .block-desc {
+          margin: 14px 0 0;
+          font-size: 16px;
+          line-height: 1.75;
+          color: #dbeafe;
+          font-weight: 500;
+          max-width: 720px;
+        }
+
+        .loading-card .lead {
+          margin-left: auto;
+          margin-right: auto;
+        }
+
+        .hero-card {
+          display: flex;
+          flex-wrap: wrap;
+          justify-content: space-between;
+          gap: 24px;
+          padding: 32px;
+          margin-bottom: 28px;
+          border-radius: 32px;
+          border: 1px solid rgba(147, 197, 253, 0.26);
+          background:
+            linear-gradient(135deg, rgba(3, 7, 18, 0.92), rgba(15, 23, 42, 0.82)),
+            radial-gradient(circle at 80% 0%, rgba(37, 99, 235, 0.35), transparent 40%);
+          box-shadow: 0 32px 100px rgba(2, 6, 23, 0.38);
+          backdrop-filter: blur(22px);
+        }
+
+        .hero-copy {
+          flex: 1;
+          min-width: 260px;
+        }
+
+        .badge-row {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 10px;
+          margin-top: 18px;
+        }
+
+        .hero-actions {
+          display: flex;
+          flex-direction: column;
+          gap: 12px;
+          min-width: 220px;
+        }
+
+        .btn {
+          appearance: none;
+          font-family: inherit;
+          cursor: pointer;
+          border-radius: 999px;
+          font-size: 16px;
+          font-weight: 850;
+          min-height: 50px;
+          padding: 14px 22px;
+          border: 1px solid transparent;
+          transition:
+            transform 0.18s ease,
+            box-shadow 0.2s ease,
+            border-color 0.2s ease,
+            background 0.2s ease;
+        }
+
+        .btn:focus-visible {
+          outline: 2px solid #38bdf8;
+          outline-offset: 3px;
+        }
+
+        .btn:hover:not(:disabled) {
+          transform: translateY(-2px);
+        }
+
+        .btn-primary {
+          background: linear-gradient(135deg, #ffffff 0%, #bfdbfe 50%, #22d3ee 100%);
+          color: #0f172a;
+          box-shadow: 0 18px 48px rgba(37, 99, 235, 0.32);
+        }
+
+        .btn-glass {
+          background: linear-gradient(135deg, rgba(255, 255, 255, 0.14), rgba(96, 165, 250, 0.1));
+          color: #f8fafc;
+          border-color: rgba(147, 197, 253, 0.35);
+          backdrop-filter: blur(12px);
+        }
+
+        .btn-glass:hover:not(:disabled) {
+          border-color: rgba(34, 211, 238, 0.65);
+        }
+
+        .btn-block {
+          width: 100%;
+        }
+
+        .block {
+          margin-bottom: 36px;
+        }
+
+        .block-head h2 {
+          margin: 8px 0 0;
+          font-size: clamp(22px, 2.8vw, 30px);
+          font-weight: 950;
+          color: #ffffff;
+        }
+
+        .stat-grid {
+          display: grid;
+          grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+          gap: 16px;
+        }
+
+        .stat-card {
+          border-radius: 24px;
+          border: 1px solid rgba(147, 197, 253, 0.22);
+          padding: 22px;
+          background:
+            linear-gradient(145deg, rgba(15, 23, 42, 0.88), rgba(30, 41, 59, 0.5)),
+            rgba(255, 255, 255, 0.06);
+          box-shadow: 0 22px 70px rgba(2, 6, 23, 0.28);
+          backdrop-filter: blur(16px);
+        }
+
+        .stat-label {
+          display: block;
+          color: #93c5fd;
+          font-size: 14px;
+          font-weight: 850;
+          margin-bottom: 10px;
+        }
+
+        .stat-value {
+          display: block;
+          font-size: clamp(30px, 4vw, 40px);
+          font-weight: 950;
+          color: #ffffff;
+          line-height: 1;
+        }
+
+        .stat-help {
+          margin: 12px 0 0;
+          font-size: 15px;
+          line-height: 1.65;
+          color: #c7d2fe;
+        }
+
+        .empty-wrap {
+          border-radius: 26px;
+        }
+
+        .session-list {
+          display: grid;
+          gap: 16px;
+        }
+
+        .session-card {
+          display: flex;
+          flex-wrap: wrap;
+          justify-content: space-between;
+          gap: 20px;
+          padding: 24px;
+          border-radius: 26px;
+          border: 1px solid rgba(147, 197, 253, 0.22);
+          background:
+            linear-gradient(145deg, rgba(15, 23, 42, 0.9), rgba(30, 41, 59, 0.55)),
+            rgba(255, 255, 255, 0.07);
+          box-shadow: 0 24px 70px rgba(2, 6, 23, 0.3);
+          backdrop-filter: blur(18px);
+          transition: border-color 0.2s ease, transform 0.2s ease;
+        }
+
+        .session-card:hover {
+          border-color: rgba(34, 211, 238, 0.45);
+          transform: translateY(-3px);
+        }
+
+        .session-body {
+          flex: 1;
+          min-width: 260px;
+        }
+
+        .session-title-row {
+          display: flex;
+          flex-wrap: wrap;
+          align-items: center;
+          gap: 10px;
+          margin-bottom: 12px;
+        }
+
+        .session-title-row h2 {
+          margin: 0;
+          font-size: 19px;
+          font-weight: 950;
+          color: #ffffff;
+          line-height: 1.3;
+        }
+
+        .session-meta {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 10px;
+          margin-bottom: 12px;
+        }
+
+        .session-desc {
+          margin: 0;
+          font-size: 16px;
+          line-height: 1.7;
+          color: #dbeafe;
+        }
+
+        .session-aside {
+          display: flex;
+          flex-direction: column;
+          gap: 10px;
+          min-width: 200px;
+        }
+
+        @media (max-width: 720px) {
+          .sessions-shell {
+            padding: 22px 14px 56px;
+          }
+
+          .hero-card {
+            padding: 24px 20px;
+          }
+
+          .hero-actions {
+            width: 100%;
+          }
+        }
+      `}</style>
     </>
   );
 }

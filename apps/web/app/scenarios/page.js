@@ -373,20 +373,37 @@ export default function ScenariosPage() {
         }
 
         .card-footer button {
-          min-height: 48px;
+          appearance: none;
+          font-family: inherit;
+          min-height: 50px;
           border: 0;
-          border-radius: 16px;
-          padding: 12px 18px;
+          border-radius: 999px;
+          padding: 14px 22px;
           background: linear-gradient(135deg, #ffffff, #93c5fd 54%, #22d3ee);
           color: #0f172a;
-          font-size: 15px;
+          font-size: 16px;
           font-weight: 950;
           cursor: pointer;
           box-shadow: 0 18px 44px rgba(37, 99, 235, 0.28);
+          transition: transform 0.18s ease, box-shadow 0.22s ease, filter 0.2s ease;
+        }
+
+        .card-footer button:hover:not(:disabled) {
+          transform: translateY(-2px);
+          box-shadow: 0 22px 52px rgba(37, 99, 235, 0.36);
+        }
+
+        .card-footer button:focus-visible {
+          outline: 2px solid #38bdf8;
+          outline-offset: 3px;
+        }
+
+        .card-footer button:active:not(:disabled) {
+          transform: translateY(0);
         }
 
         .card-footer button:disabled {
-          opacity: 0.68;
+          opacity: 0.72;
           cursor: wait;
         }
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Navbar from "../../../components/Navbar";
 import { getSessionById, getSessionFeedback } from "../../../lib/api";
@@ -97,6 +97,48 @@ function getSentimentImpactText(value) {
   return "Aucun signal vocal exploitable n’a été détecté pour cette session.";
 }
 
+const DEFAULT_SENTIMENT_MODEL =
+  "lxyuan/distilbert-base-multilingual-cased-sentiments-student";
+
+const SENTIMENT_IMPACT_RATING =
+  "Cette analyse complète le feedback IA et ajuste légèrement les scores de confiance, communication et professionnalisme.";
+
+function formatSentimentConfidence(value) {
+  if (value === null || value === undefined || value === "") return null;
+  const num = Number(value);
+  if (Number.isNaN(num)) return null;
+  return num.toFixed(2);
+}
+
+function findLatestUserSentimentMessage(msgs) {
+  if (!Array.isArray(msgs)) return null;
+  for (let i = msgs.length - 1; i >= 0; i -= 1) {
+    const m = msgs[i];
+    if (m.role !== "user") continue;
+    if (
+      m.sentiment_label ||
+      (m.sentiment_score !== undefined && m.sentiment_score !== null) ||
+      (m.sentiment_confidence !== undefined && m.sentiment_confidence !== null) ||
+      m.sentiment_source ||
+      m.sentiment_model
+    ) {
+      return m;
+    }
+  }
+  return null;
+}
+
+function resolveSentimentSourceDisplay(feedback, msg) {
+  const vt = feedback?.voice_transcription;
+  if (typeof vt === "string" && vt.trim()) {
+    const t = vt.trim();
+    return t.length > 180 ? `${t.slice(0, 177)}…` : t;
+  }
+  const s = msg?.sentiment_source || feedback?.sentiment_source;
+  if (typeof s === "string" && s.trim()) return s.trim();
+  return "Transcription vocale";
+}
+
 export default function SessionPerformancePage() {
   const router = useRouter();
   const params = useParams();
@@ -153,8 +195,10 @@ export default function SessionPerformancePage() {
     (msg) => msg.role === "assistant"
   ).length;
 
-  const hasVoiceSentiment =
-    feedback?.voice_sentiment_label || feedback?.voice_sentiment_summary;
+  const latestSentimentMessage = useMemo(
+    () => findLatestUserSentimentMessage(messages),
+    [messages]
+  );
 
   return (
     <div className="page-root">
@@ -288,66 +332,95 @@ export default function SessionPerformancePage() {
             </section>
 
             {feedback && (
-              <section className="voice-analysis-card">
-                <div className="section-title">
-                  <p className="eyebrow">Analyse vocale</p>
-                  <h2>Sentiment vocal détecté</h2>
-                </div>
-
-                {hasVoiceSentiment ? (
-                  <div className="voice-layout">
-                    <div className="voice-main">
-                      <div
-                        className={`voice-badge ${getSentimentClass(
-                          feedback.voice_sentiment_label
+              <section
+                className="sentiment-model-card"
+                aria-labelledby="perf-sentiment-model-title"
+              >
+                <header className="jury-head">
+                  <p className="jury-eyebrow">Modèle de sentiment</p>
+                  <h2 id="perf-sentiment-model-title" className="jury-title">
+                    Résultat du modèle de sentiment
+                  </h2>
+                  <p className="jury-lead">
+                    Synthèse lisible pour le jury : scores vocaux, confiance du
+                    modèle, source des données et résumé automatique.
+                  </p>
+                </header>
+                <dl className="jury-grid">
+                  <div className="jury-row">
+                    <dt>Sentiment détecté</dt>
+                    <dd>
+                      <span
+                        className={`sentiment-label-badge ${getSentimentClass(
+                          feedback.voice_sentiment_label ||
+                            latestSentimentMessage?.sentiment_label
                         )}`}
                       >
-                        {formatSentimentLabel(feedback.voice_sentiment_label)}
-                      </div>
-
-                      <div>
-                        <h3>Analyse sentimentale vocale</h3>
-                        <p>
-                          Cette analyse est basée sur la transcription des messages
-                          vocaux utilisateur. Elle complète le feedback IA sans
-                          remplacer l’évaluation du contenu.
-                        </p>
-                      </div>
-                    </div>
-
-                    <div className="voice-metrics">
-                      <div className="voice-metric-box">
-                        <span>Score sentiment</span>
-                        <strong>
-                          {formatVoiceScore(feedback.voice_sentiment_score)}
-                        </strong>
-                      </div>
-
-                      <div className="voice-metric-box">
-                        <span>Impact rating</span>
-                        <strong>Modéré</strong>
-                      </div>
-                    </div>
-
-                    <div className="voice-summary">
-                      <h4>Résumé</h4>
-                      <p>
-                        {feedback.voice_sentiment_summary ||
-                          "Résumé vocal non disponible."}
-                      </p>
-                    </div>
-
-                    <div className="voice-impact">
-                      <h4>Interprétation</h4>
-                      <p>{getSentimentImpactText(feedback.voice_sentiment_label)}</p>
-                    </div>
+                        {formatSentimentLabel(
+                          feedback.voice_sentiment_label ||
+                            latestSentimentMessage?.sentiment_label
+                        )}
+                      </span>
+                    </dd>
                   </div>
-                ) : (
-                  <div className="empty-box">
-                    Aucun message vocal analysé pour cette session. Envoyez un
-                    message vocal pendant une simulation pour voir cette analyse.
+                  <div className="jury-row">
+                    <dt>Score sentiment</dt>
+                    <dd className="jury-value-strong">
+                      {formatVoiceScore(
+                        feedback.voice_sentiment_score ??
+                          latestSentimentMessage?.sentiment_score
+                      )}
+                    </dd>
                   </div>
-                )}
+                  <div className="jury-row">
+                    <dt>Confiance du modèle</dt>
+                    <dd>
+                      {(() => {
+                        const c =
+                          latestSentimentMessage?.sentiment_confidence ??
+                          feedback.voice_sentiment_confidence ??
+                          feedback.sentiment_confidence;
+                        const f = formatSentimentConfidence(c);
+                        return f !== null ? f : "Non disponible";
+                      })()}
+                    </dd>
+                  </div>
+                  <div className="jury-row">
+                    <dt>Source</dt>
+                    <dd className="jury-value-multiline">
+                      {resolveSentimentSourceDisplay(
+                        feedback,
+                        latestSentimentMessage
+                      )}
+                    </dd>
+                  </div>
+                  <div className="jury-row">
+                    <dt>Modèle</dt>
+                    <dd className="jury-value-code">
+                      {latestSentimentMessage?.sentiment_model ||
+                        feedback.sentiment_model ||
+                        DEFAULT_SENTIMENT_MODEL}
+                    </dd>
+                  </div>
+                  <div className="jury-row jury-row-span">
+                    <dt>Résumé</dt>
+                    <dd className="jury-value-multiline">
+                      {feedback.voice_sentiment_summary || "Non disponible"}
+                    </dd>
+                  </div>
+                  <div className="jury-row jury-row-span jury-impact">
+                    <dt>Impact sur le rating</dt>
+                    <dd className="jury-value-multiline">
+                      {SENTIMENT_IMPACT_RATING}
+                    </dd>
+                  </div>
+                </dl>
+                <div className="jury-footnote">
+                  <p>
+                    Interprétation complémentaire :{" "}
+                    {getSentimentImpactText(feedback.voice_sentiment_label)}
+                  </p>
+                </div>
               </section>
             )}
 
@@ -391,8 +464,12 @@ export default function SessionPerformancePage() {
                 <div className="messages-list">
                   {messages.map((message) => {
                     const isUser = message.role === "user";
-                    const hasMessageSentiment =
-                      isUser && message.sentiment_label && message.sentiment_source;
+                    const confStr = formatSentimentConfidence(
+                      message.sentiment_confidence
+                    );
+                    const showVoiceSentimentBadge =
+                      isUser &&
+                      (message.sentiment_label || confStr !== null);
 
                     return (
                       <div
@@ -406,14 +483,17 @@ export default function SessionPerformancePage() {
                         >
                           <strong>{isUser ? "Vous" : "Assistant"}</strong>
 
-                          {hasMessageSentiment && (
+                          {showVoiceSentimentBadge && (
                             <div
-                              className={`message-sentiment ${getSentimentClass(
+                              className={`message-voice-badge ${getSentimentClass(
                                 message.sentiment_label
                               )}`}
                             >
-                              Vocal : {formatSentimentLabel(message.sentiment_label)} ·{" "}
-                              {formatVoiceScore(message.sentiment_score)}
+                              Sentiment vocal :{" "}
+                              {message.sentiment_label
+                                ? formatSentimentLabel(message.sentiment_label)
+                                : "Indéterminé"}
+                              {confStr !== null ? ` · confiance ${confStr}` : ""}
                             </div>
                           )}
 
@@ -433,7 +513,6 @@ export default function SessionPerformancePage() {
       <style jsx>{`
         .page-root {
           min-height: 100vh;
-          background: linear-gradient(to bottom, #f8fafc, #e2e8f0);
         }
 
         .performance-shell {
@@ -451,12 +530,12 @@ export default function SessionPerformancePage() {
         }
 
         .secondary-btn {
-          border: 1px solid #cbd5e1;
-          background: #ffffff;
-          color: #0f172a;
-          border-radius: 14px;
-          padding: 12px 18px;
-          font-weight: 800;
+          appearance: none;
+          font-family: inherit;
+          border-radius: 999px;
+          padding: 14px 22px;
+          font-size: 16px;
+          font-weight: 850;
           cursor: pointer;
         }
 
@@ -464,7 +543,7 @@ export default function SessionPerformancePage() {
         .hero-card,
         .scores-card,
         .conversation-card,
-        .voice-analysis-card {
+        .sentiment-model-card {
           background: #ffffff;
           border: 1px solid #e2e8f0;
           border-radius: 28px;
@@ -589,7 +668,7 @@ export default function SessionPerformancePage() {
         }
 
         .scores-card,
-        .voice-analysis-card {
+        .sentiment-model-card {
           margin-bottom: 20px;
         }
 
@@ -635,111 +714,151 @@ export default function SessionPerformancePage() {
           margin: 10px 0 0;
         }
 
-        .voice-layout {
-          display: grid;
-          gap: 18px;
+        .sentiment-model-card {
+          padding: 26px;
+          border-radius: 28px;
         }
 
-        .voice-main {
-          display: flex;
-          align-items: flex-start;
-          gap: 16px;
-          flex-wrap: wrap;
+        .jury-head {
+          margin-bottom: 20px;
         }
 
-        .voice-main h3 {
+        .jury-eyebrow {
           margin: 0 0 8px;
+          color: #2563eb;
+          font-size: 13px;
+          font-weight: 900;
+          letter-spacing: 0.1em;
+          text-transform: uppercase;
+        }
+
+        .jury-title {
+          margin: 0;
           color: #0f172a;
-          font-size: 22px;
+          font-size: clamp(20px, 2.4vw, 28px);
+          font-weight: 950;
+          line-height: 1.15;
+        }
+
+        .jury-lead {
+          margin: 12px 0 0;
+          color: #475569;
+          font-size: 16px;
+          line-height: 1.7;
+          max-width: 900px;
+        }
+
+        .jury-grid {
+          margin: 0;
+          display: flex;
+          flex-direction: column;
+          gap: 12px;
+        }
+
+        .jury-row {
+          display: grid;
+          grid-template-columns: minmax(160px, 220px) minmax(0, 1fr);
+          gap: 14px 18px;
+          align-items: center;
+          padding: 14px 16px;
+          border-radius: 16px;
+          border: 1px solid #e2e8f0;
+          background: #f8fafc;
+        }
+
+        .jury-row-span {
+          grid-template-columns: 1fr;
+          align-items: start;
+        }
+
+        .jury-row-span dt {
+          margin-bottom: 4px;
+        }
+
+        .jury-impact {
+          border-color: #bae6fd;
+          background: #f0f9ff;
+        }
+
+        .jury-row dt {
+          margin: 0;
+          color: #64748b;
+          font-size: 15px;
+          font-weight: 800;
+        }
+
+        .jury-row dd {
+          margin: 0;
+          color: #0f172a;
+          font-size: 16px;
+          line-height: 1.65;
+        }
+
+        .jury-value-strong {
+          font-size: 20px;
+          font-weight: 950;
+        }
+
+        .jury-value-multiline {
+          white-space: pre-wrap;
+          word-break: break-word;
+        }
+
+        .jury-value-code {
+          font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
+            "Liberation Mono", "Courier New", monospace;
+          font-size: 14px;
+          line-height: 1.55;
+          color: #1e293b;
+        }
+
+        .sentiment-label-badge {
+          display: inline-flex;
+          align-items: center;
+          min-height: 36px;
+          padding: 8px 14px;
+          border-radius: 999px;
+          font-size: 15px;
           font-weight: 900;
         }
 
-        .voice-main p {
-          margin: 0;
+        .sentiment-label-badge.positive {
+          color: #14532d;
+          background: #bbf7d0;
+          border: 1px solid #4ade80;
+        }
+
+        .sentiment-label-badge.negative {
+          color: #7f1d1d;
+          background: #fecaca;
+          border: 1px solid #f87171;
+        }
+
+        .sentiment-label-badge.neutral {
+          color: #1e293b;
+          background: #e2e8f0;
+          border: 1px solid #94a3b8;
+        }
+
+        .sentiment-label-badge.empty {
           color: #475569;
-          line-height: 1.7;
-        }
-
-        .voice-badge {
-          display: inline-flex;
-          align-items: center;
-          justify-content: center;
-          min-width: 110px;
-          padding: 10px 14px;
-          border-radius: 999px;
-          font-size: 14px;
-          font-weight: 950;
-          text-transform: uppercase;
-          letter-spacing: 0.04em;
-        }
-
-        .voice-badge.positive {
-          color: #166534;
-          background: #dcfce7;
-          border: 1px solid #86efac;
-        }
-
-        .voice-badge.negative {
-          color: #991b1b;
-          background: #fee2e2;
-          border: 1px solid #fca5a5;
-        }
-
-        .voice-badge.neutral {
-          color: #334155;
           background: #f1f5f9;
           border: 1px solid #cbd5e1;
         }
 
-        .voice-badge.empty {
-          color: #64748b;
-          background: #f8fafc;
+        .jury-footnote {
+          margin-top: 18px;
+          padding: 16px;
+          border-radius: 16px;
           border: 1px solid #e2e8f0;
+          background: #ffffff;
         }
 
-        .voice-metrics {
-          display: grid;
-          grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
-          gap: 14px;
-        }
-
-        .voice-metric-box,
-        .voice-summary,
-        .voice-impact {
-          background: #f8fafc;
-          border: 1px solid #e2e8f0;
-          border-radius: 20px;
-          padding: 18px;
-        }
-
-        .voice-metric-box span {
-          display: block;
-          color: #64748b;
-          font-weight: 900;
-          margin-bottom: 8px;
-          font-size: 13px;
-        }
-
-        .voice-metric-box strong {
-          color: #0f172a;
-          font-size: 28px;
-          font-weight: 950;
-        }
-
-        .voice-summary h4,
-        .voice-impact h4 {
-          margin: 0 0 8px;
-          color: #0f172a;
-          font-size: 18px;
-          font-weight: 900;
-        }
-
-        .voice-summary p,
-        .voice-impact p {
+        .jury-footnote p {
           margin: 0;
           color: #475569;
-          line-height: 1.75;
-          white-space: pre-wrap;
+          font-size: 15px;
+          line-height: 1.7;
         }
 
         .analysis-grid {
@@ -822,28 +941,63 @@ export default function SessionPerformancePage() {
           border: 1px solid #e2e8f0;
         }
 
-        .message-sentiment {
+        .message-voice-badge {
+          margin-top: 10px;
           width: fit-content;
-          margin-top: 8px;
+          max-width: 100%;
+          padding: 8px 12px;
           border-radius: 999px;
-          padding: 6px 10px;
-          font-size: 12px;
-          font-weight: 900;
+          font-size: 14px;
+          font-weight: 800;
+          line-height: 1.4;
         }
 
-        .message-sentiment.positive {
-          color: #166534;
-          background: #dcfce7;
+        .message-bubble.user .message-voice-badge.positive {
+          background: rgba(255, 255, 255, 0.95);
+          color: #14532d;
+          border: 1px solid #86efac;
         }
 
-        .message-sentiment.negative {
-          color: #991b1b;
-          background: #fee2e2;
+        .message-bubble.user .message-voice-badge.negative {
+          background: rgba(255, 255, 255, 0.95);
+          color: #7f1d1d;
+          border: 1px solid #fca5a5;
         }
 
-        .message-sentiment.neutral {
-          color: #334155;
+        .message-bubble.user .message-voice-badge.neutral {
+          background: rgba(255, 255, 255, 0.92);
+          color: #1e293b;
+          border: 1px solid #cbd5e1;
+        }
+
+        .message-bubble.user .message-voice-badge.empty {
+          background: rgba(255, 255, 255, 0.88);
+          color: #0f172a;
+          border: 1px solid rgba(255, 255, 255, 0.5);
+        }
+
+        .message-bubble.assistant .message-voice-badge.positive {
+          color: #14532d;
+          background: #bbf7d0;
+          border: 1px solid #4ade80;
+        }
+
+        .message-bubble.assistant .message-voice-badge.negative {
+          color: #7f1d1d;
+          background: #fecaca;
+          border: 1px solid #f87171;
+        }
+
+        .message-bubble.assistant .message-voice-badge.neutral {
+          color: #1e293b;
           background: #e2e8f0;
+          border: 1px solid #94a3b8;
+        }
+
+        .message-bubble.assistant .message-voice-badge.empty {
+          color: #475569;
+          background: #f1f5f9;
+          border: 1px solid #cbd5e1;
         }
 
         .message-bubble p {
@@ -854,8 +1008,13 @@ export default function SessionPerformancePage() {
 
         .message-bubble span {
           display: block;
-          font-size: 12px;
-          opacity: 0.75;
+          font-size: 14px;
+          line-height: 1.4;
+          color: #64748b;
+        }
+
+        .message-bubble.user span {
+          color: rgba(255, 255, 255, 0.88);
         }
 
         .page-root {
@@ -874,7 +1033,7 @@ export default function SessionPerformancePage() {
         .hero-card,
         .scores-card,
         .conversation-card,
-        .voice-analysis-card,
+        .sentiment-model-card,
         .analysis-card,
         .stat-card {
           border: 1px solid rgba(147, 197, 253, 0.22);
@@ -887,21 +1046,81 @@ export default function SessionPerformancePage() {
           backdrop-filter: blur(18px);
         }
 
-        .secondary-btn {
-          border-color: rgba(147, 197, 253, 0.26);
-          background: rgba(255, 255, 255, 0.1);
+        .jury-eyebrow {
+          color: #93c5fd;
+        }
+
+        .jury-title {
           color: #ffffff;
-          min-height: 46px;
-          font-size: 15px;
+        }
+
+        .jury-lead {
+          color: #dbeafe;
+        }
+
+        .jury-row {
+          border-color: rgba(147, 197, 253, 0.22);
+          background:
+            linear-gradient(135deg, rgba(255, 255, 255, 0.1), rgba(96, 165, 250, 0.06)),
+            rgba(15, 23, 42, 0.35);
+        }
+
+        .jury-impact {
+          border-color: rgba(34, 211, 238, 0.35);
+          background: rgba(8, 47, 73, 0.45);
+        }
+
+        .jury-row dt {
+          color: #bfdbfe;
+        }
+
+        .jury-row dd,
+        .jury-value-strong {
+          color: #f1f5f9;
+        }
+
+        .jury-value-code {
+          color: #e0f2fe;
+        }
+
+        .jury-footnote {
+          border-color: rgba(147, 197, 253, 0.22);
+          background: rgba(15, 23, 42, 0.4);
+        }
+
+        .jury-footnote p {
+          color: #dbeafe;
+        }
+
+        .sentiment-label-badge.empty {
+          color: #e2e8f0;
+          background: rgba(15, 23, 42, 0.55);
+          border-color: rgba(148, 163, 184, 0.45);
+        }
+
+        .secondary-btn {
+          border: 1px solid rgba(147, 197, 253, 0.3);
+          background: linear-gradient(135deg, rgba(255, 255, 255, 0.12), rgba(96, 165, 250, 0.08));
+          color: #f8fafc;
+          min-height: 50px;
+          box-shadow: 0 12px 32px rgba(2, 6, 23, 0.2);
+          transition: transform 0.18s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .secondary-btn:hover {
+          transform: translateY(-2px);
+          border-color: rgba(34, 211, 238, 0.55);
+        }
+
+        .secondary-btn:focus-visible {
+          outline: 2px solid #38bdf8;
+          outline-offset: 3px;
         }
 
         .loading-card h1,
         .hero-card h1,
         .section-title h2,
         .score-item strong,
-        .voice-main h3,
-        .voice-summary h4,
-        .voice-impact h4,
         .analysis-card h3,
         .stat-card strong {
           color: #f8fafc;
@@ -910,9 +1129,6 @@ export default function SessionPerformancePage() {
         .description,
         .loading-card p,
         .score-item p,
-        .voice-main p,
-        .voice-summary p,
-        .voice-impact p,
         .analysis-card p,
         .message-bubble p,
         .empty-box {
@@ -923,17 +1139,13 @@ export default function SessionPerformancePage() {
 
         .eyebrow,
         .stat-card span,
-        .score-item span,
-        .voice-metric-box span {
+        .score-item span {
           color: #93c5fd;
           font-size: 13px;
         }
 
         .global-score-card,
         .score-item,
-        .voice-metric-box,
-        .voice-summary,
-        .voice-impact,
         .empty-box {
           border: 1px solid rgba(147, 197, 253, 0.18);
           background:
@@ -941,8 +1153,7 @@ export default function SessionPerformancePage() {
             rgba(15, 23, 42, 0.24);
         }
 
-        .global-score-card strong,
-        .voice-metric-box strong {
+        .global-score-card strong {
           color: #ffffff;
         }
 
@@ -971,7 +1182,7 @@ export default function SessionPerformancePage() {
           background: linear-gradient(135deg, #2563eb, #1d4ed8);
         }
 
-        .message-sentiment {
+        .message-voice-badge {
           font-size: 13px;
           line-height: 1.35;
         }
@@ -1010,9 +1221,13 @@ export default function SessionPerformancePage() {
           .hero-card,
           .scores-card,
           .conversation-card,
-          .voice-analysis-card {
+          .sentiment-model-card {
             padding: 20px;
             border-radius: 22px;
+          }
+
+          .jury-row {
+            grid-template-columns: 1fr;
           }
 
           .hero-card h1 {

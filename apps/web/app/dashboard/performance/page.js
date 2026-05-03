@@ -170,7 +170,7 @@ export default function DashboardPerformancePage() {
                 dernier feedback généré par l'IA.
               </p>
             </div>
-            <button onClick={() => router.push("/dashboard")}>
+            <button type="button" className="hero-back-btn" onClick={() => router.push("/dashboard")}>
               Retour au dashboard
             </button>
           </section>
@@ -333,16 +333,32 @@ export default function DashboardPerformancePage() {
           line-height: 1.75;
         }
 
-        button {
-          min-height: 48px;
-          border: 1px solid rgba(147, 197, 253, 0.28);
-          border-radius: 16px;
-          padding: 12px 16px;
-          background: linear-gradient(135deg, #ffffff, #93c5fd 54%, #22d3ee);
-          color: #0f172a;
-          font-size: 15px;
+        .hero-back-btn {
+          appearance: none;
+          font-family: inherit;
+          flex-shrink: 0;
+          min-height: 52px;
+          border-radius: 999px;
+          padding: 14px 22px;
+          border: 1px solid rgba(147, 197, 253, 0.35);
+          background: linear-gradient(135deg, rgba(255, 255, 255, 0.14), rgba(96, 165, 250, 0.1));
+          color: #f8fafc;
+          font-size: 16px;
           font-weight: 950;
           cursor: pointer;
+          backdrop-filter: blur(12px);
+          box-shadow: 0 14px 36px rgba(2, 6, 23, 0.25);
+          transition: transform 0.18s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .hero-back-btn:hover {
+          transform: translateY(-2px);
+          border-color: rgba(34, 211, 238, 0.6);
+        }
+
+        .hero-back-btn:focus-visible {
+          outline: 2px solid #38bdf8;
+          outline-offset: 3px;
         }
 
         .empty-card,
@@ -508,6 +524,10 @@ export default function DashboardPerformancePage() {
 
           .hero {
             flex-direction: column;
+          }
+
+          .hero-back-btn {
+            width: 100%;
           }
         }
 
