@@ -235,7 +235,7 @@ export default function DashboardPage() {
         ),
         final_advice: sanitizeFeedbackText(
           rawFeedback?.final_advice,
-          "Reessayez plus tard ou verifiez la configuration IA."
+          "Réessayez plus tard ou vérifiez la configuration IA."
         ),
       }
     : null;
@@ -254,14 +254,14 @@ export default function DashboardPage() {
       description: "Assurance moyenne",
     },
     {
-      label: "Clarte",
+      label: "Clarté",
       value: clarityAverage,
-      description: "Structure des reponses",
+      description: "Structure des réponses",
     },
     {
       label: "Pertinence",
       value: relevanceAverage,
-      description: "Qualite des reponses",
+      description: "Qualité des réponses",
     },
     {
       label: "Professionnalisme",
@@ -287,11 +287,11 @@ export default function DashboardPage() {
               <div className="loading-panel">
                 <span className="loader-mark" />
                 <div>
-                  <p className="eyebrow">Dashboard etudiant</p>
+                  <p className="eyebrow">Dashboard étudiant</p>
                   <h1 className="hero-title">Chargement du dashboard...</h1>
                   <p className="hero-text">
-                    Nous preparons vos statistiques, scenarios et sessions
-                    recentes.
+                    Nous préparons vos statistiques, scénarios et sessions
+                    récentes.
                   </p>
                 </div>
               </div>
@@ -404,9 +404,15 @@ export default function DashboardPage() {
                   Bon retour, {user?.full_name || "utilisateur"}.
                 </h1>
                 <p className="hero-text">
-                  Pilotez vos simulations, suivez vos progres reels et preparez
-                  vos entretiens avec une vision claire de votre evolution.
+                  Pilotez vos simulations, suivez vos progrès réels et préparez
+                  vos entretiens avec une vision claire de votre évolution.
                 </p>
+
+                <div className="hero-meta">
+                  <span>IA conversationnelle</span>
+                  <span>Voix et sentiment</span>
+                  <span>Feedback détaillé</span>
+                </div>
 
                 <div className="hero-actions" aria-label="Actions rapides">
                   <button
@@ -414,7 +420,7 @@ export default function DashboardPage() {
                     className="action-button primary"
                   >
                     <span className="button-icon">+</span>
-                    Demarrer une simulation
+                    Démarrer une simulation
                   </button>
 
                   <button
@@ -435,7 +441,7 @@ export default function DashboardPage() {
                 </div>
               </div>
 
-              <div className="hero-panel" aria-label="Resume du dashboard">
+              <div className="hero-panel" aria-label="Résumé du dashboard">
                 <div className="hero-panel-top">
                   <span className="panel-label">Progression</span>
                   <strong>{stats.completionRate}%</strong>
@@ -454,7 +460,7 @@ export default function DashboardPage() {
                   </div>
                   <div>
                     <span>{stats.completedSessions}</span>
-                    <p>Terminees</p>
+                    <p>Terminées</p>
                   </div>
                   <div>
                     <span>{stats.availableScenarios}</span>
@@ -465,7 +471,7 @@ export default function DashboardPage() {
                 <div className="next-step">
                   <span className="next-dot" />
                   <p>
-                    Derniere activite :{" "}
+                    Dernière activité :{" "}
                     <strong>
                       {latestDate ? formatDate(latestDate) : "Aucune session"}
                     </strong>
@@ -479,21 +485,21 @@ export default function DashboardPage() {
             <SectionHeader
               eyebrow="Vue d'ensemble"
               title="Indicateurs principaux"
-              description="Un resume compact de vos sessions, de votre activite et des scenarios disponibles."
+              description="Un résumé compact de vos sessions, de votre activité et des scénarios disponibles."
             />
 
             <div className="stats-grid">
               <StatCard
                 label="Total sessions"
                 value={stats.totalSessions}
-                helpText="Toutes les simulations lancees."
+                helpText="Toutes les simulations lancées."
                 accent="blue"
                 style={{ borderRadius: "8px" }}
               />
               <StatCard
-                label="Sessions terminees"
+                label="Sessions terminées"
                 value={stats.completedSessions}
-                helpText="Simulations finalisees avec succes."
+                helpText="Simulations finalisées avec succès."
                 accent="green"
                 style={{ borderRadius: "8px" }}
               />
@@ -505,16 +511,16 @@ export default function DashboardPage() {
                 style={{ borderRadius: "8px" }}
               />
               <StatCard
-                label="Scenarios disponibles"
+                label="Scénarios disponibles"
                 value={stats.availableScenarios}
                 helpText="Situations accessibles sur la plateforme."
                 accent="slate"
                 style={{ borderRadius: "8px" }}
               />
               <StatCard
-                label="Taux de completion"
+                label="Taux de complétion"
                 value={`${stats.completionRate}%`}
-                helpText="Part de sessions terminees."
+                helpText="Part de sessions terminées."
                 accent="blue"
                 style={{ borderRadius: "8px" }}
               />
@@ -524,14 +530,14 @@ export default function DashboardPage() {
           <section className="section-block">
             <SectionHeader
               eyebrow="Performance IA"
-              title="Analyse de vos sessions evaluees"
-              description="Scores calcules depuis vos sessions avec feedback pour visualiser vos points forts."
+              title="Analyse de vos sessions évaluées"
+              description="Scores calculés depuis vos sessions avec feedback pour visualiser vos points forts."
               action={
                 <button
                   onClick={() => router.push("/dashboard/performance")}
                   className="small-link-button"
                 >
-                  Detail complet
+                  Détail complet
                 </button>
               }
             />
@@ -541,9 +547,9 @@ export default function DashboardPage() {
                 <div className="empty-state">
                   <span className="empty-icon">o</span>
                   <div>
-                    <h3>Aucune performance evaluee</h3>
+                    <h3>Aucune performance évaluée</h3>
                     <p>
-                      Termine une session evaluee pour afficher tes scores, ton
+                      Termine une session évaluée pour afficher tes scores, ton
                       feedback IA et les axes de progression prioritaires.
                     </p>
                   </div>
@@ -571,7 +577,7 @@ export default function DashboardPage() {
                   <div className="score-summary">
                     <div>
                       <strong>{completedRatedSessions}</strong>
-                      <span>sessions evaluees</span>
+                      <span>sessions évaluées</span>
                     </div>
                     <div>
                       <strong>{formatMetric(bestScore)}</strong>
@@ -604,7 +610,7 @@ export default function DashboardPage() {
                   <Card style={{ padding: "26px", borderRadius: "8px" }}>
                     <div className="feedback-header">
                       <p className="panel-label">Dernier feedback IA</p>
-                      <h3>Conseils recents</h3>
+                      <h3>Conseils récents</h3>
                     </div>
 
                     <div className="feedback-grid">
@@ -628,7 +634,7 @@ export default function DashboardPage() {
                         <span className="feedback-token blue">Conseil</span>
                         <p>
                           {latestFeedback.final_advice ||
-                            "Reessayez plus tard ou verifiez la configuration IA."}
+                            "Réessayez plus tard ou vérifiez la configuration IA."}
                         </p>
                       </div>
                     </div>
@@ -640,9 +646,9 @@ export default function DashboardPage() {
 
           <section className="section-block">
             <SectionHeader
-              eyebrow="Activite recente"
-              title="Sessions recentes"
-              description="Reprenez rapidement vos dernieres simulations ou consultez leur etat."
+              eyebrow="Activité récente"
+              title="Sessions récentes"
+              description="Reprenez rapidement vos dernières simulations ou consultez leur état."
               action={
                 <button
                   onClick={() => router.push("/sessions")}
@@ -658,10 +664,10 @@ export default function DashboardPage() {
                 <div className="empty-state">
                   <span className="empty-icon">+</span>
                   <div>
-                    <h3>Aucune session recente</h3>
+                    <h3>Aucune session récente</h3>
                     <p>
-                      Lance une simulation pour commencer a construire ton
-                      historique d'entrainement.
+                      Lance une simulation pour commencer à construire ton
+                      historique d'entraînement.
                     </p>
                   </div>
                 </div>
@@ -677,7 +683,7 @@ export default function DashboardPage() {
                   const category =
                     session?.scenario?.category ||
                     session?.scenario_category ||
-                    "Categorie inconnue";
+                    "Catégorie inconnue";
 
                   const isCompleted = session.status === "completed";
 
@@ -703,7 +709,7 @@ export default function DashboardPage() {
                                 isCompleted ? "completed" : "active"
                               }`}
                             >
-                              {isCompleted ? "Terminee" : "Active"}
+                              {isCompleted ? "Terminée" : "Active"}
                             </span>
 
                             <button
@@ -749,6 +755,7 @@ export default function DashboardPage() {
             linear-gradient(135deg, #ffffff, #dbeafe);
           box-shadow: 0 28px 80px rgba(15, 23, 42, 0.1);
           margin-bottom: 26px;
+          backdrop-filter: blur(18px);
         }
 
         .hero-card::before {
@@ -801,6 +808,29 @@ export default function DashboardPage() {
           line-height: 1.75;
           font-weight: 500;
           max-width: 720px;
+        }
+
+        .hero-meta {
+          display: flex;
+          align-items: center;
+          flex-wrap: wrap;
+          gap: 8px;
+          margin-top: 18px;
+        }
+
+        .hero-meta span {
+          display: inline-flex;
+          align-items: center;
+          min-height: 32px;
+          padding: 7px 10px;
+          border: 1px solid rgba(191, 219, 254, 0.85);
+          border-radius: 8px;
+          background: rgba(255, 255, 255, 0.68);
+          color: #1e3a8a;
+          font-size: 12px;
+          font-weight: 900;
+          box-shadow: 0 10px 24px rgba(37, 99, 235, 0.08);
+          backdrop-filter: blur(10px);
         }
 
         .hero-actions {
@@ -878,8 +908,12 @@ export default function DashboardPage() {
         .hero-panel {
           border: 1px solid rgba(191, 219, 254, 0.9);
           border-radius: 8px;
-          background: rgba(255, 255, 255, 0.82);
-          box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9);
+          background:
+            linear-gradient(180deg, rgba(255, 255, 255, 0.9), rgba(248, 250, 252, 0.74)),
+            rgba(255, 255, 255, 0.82);
+          box-shadow:
+            inset 0 1px 0 rgba(255, 255, 255, 0.9),
+            0 22px 48px rgba(37, 99, 235, 0.11);
           padding: 22px;
           backdrop-filter: blur(10px);
         }
@@ -939,8 +973,9 @@ export default function DashboardPage() {
         .hero-mini-grid div {
           border: 1px solid #e2e8f0;
           border-radius: 8px;
-          background: #ffffff;
+          background: rgba(255, 255, 255, 0.78);
           padding: 14px;
+          box-shadow: 0 12px 28px rgba(15, 23, 42, 0.05);
         }
 
         .hero-mini-grid span {
@@ -1162,8 +1197,9 @@ export default function DashboardPage() {
         .feedback-item {
           border: 1px solid #e2e8f0;
           border-radius: 8px;
-          background: #f8fafc;
+          background: linear-gradient(180deg, #ffffff, #f8fafc);
           padding: 16px;
+          box-shadow: 0 12px 24px rgba(15, 23, 42, 0.04);
         }
 
         .feedback-token {
