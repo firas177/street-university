@@ -316,7 +316,7 @@ export default function DashboardPage() {
     return (
       <>
         <Navbar />
-        <main className="page-shell loading-shell">
+        <main className="page-shell premium-dashboard-v2 loading-shell">
           <section className="loading-card">
             <div className="loading-orbit">
               <span />
@@ -414,7 +414,7 @@ export default function DashboardPage() {
     <>
       <Navbar />
 
-      <main className="page-shell">
+      <main className="page-shell premium-dashboard-v2">
         <div className="page-container">
           {error && (
             <Alert
@@ -430,6 +430,9 @@ export default function DashboardPage() {
           )}
 
           <section className="hero">
+            <span className="orb orb-one" />
+            <span className="orb orb-two" />
+            <span className="orb orb-three" />
             <div className="hero-content">
               <div className="hero-copy">
                 <div className="hero-kicker">
@@ -506,6 +509,24 @@ export default function DashboardPage() {
               <span>Feedback structuré</span>
             </div>
           </section>
+
+          <div className="hero-action-cards" aria-label="Raccourcis premium">
+            <button onClick={() => router.push("/scenarios")}>
+              <span>Nouveau</span>
+              <strong>Simulation IA</strong>
+              <small>Démarrer un entraînement guidé</small>
+            </button>
+            <button onClick={() => router.push("/dashboard/profile")}>
+              <span>Profil</span>
+              <strong>CV intelligent</strong>
+              <small>Personnaliser les questions IA</small>
+            </button>
+            <button onClick={() => router.push("/dashboard/performance")}>
+              <span>Analyse</span>
+              <strong>Performance</strong>
+              <small>Voir scores et feedback</small>
+            </button>
+          </div>
 
           <section className="bento-grid" aria-label="Résumé du dashboard">
             <StatTile
@@ -715,28 +736,51 @@ export default function DashboardPage() {
         .page-shell {
           min-height: 100vh;
           background:
-            radial-gradient(circle at 12% 4%, rgba(37, 99, 235, 0.24), transparent 28%),
-            radial-gradient(circle at 90% 10%, rgba(20, 184, 166, 0.18), transparent 26%),
-            linear-gradient(180deg, #07111f 0%, #0f172a 420px, #eef4ff 421px, #f8fafc 100%);
-          padding: 30px 20px 72px;
+            radial-gradient(circle at 8% 8%, rgba(59, 130, 246, 0.42), transparent 30%),
+            radial-gradient(circle at 76% 2%, rgba(124, 58, 237, 0.36), transparent 28%),
+            radial-gradient(circle at 92% 42%, rgba(20, 184, 166, 0.26), transparent 30%),
+            linear-gradient(180deg, #030712 0%, #07111f 42%, #0b1220 72%, #eef4ff 100%);
+          padding: 30px 20px 80px;
+          position: relative;
+          overflow: hidden;
+        }
+
+        .premium-dashboard-v2::before {
+          content: "";
+          position: fixed;
+          inset: 0;
+          background-image:
+            linear-gradient(rgba(255, 255, 255, 0.045) 1px, transparent 1px),
+            linear-gradient(90deg, rgba(255, 255, 255, 0.045) 1px, transparent 1px);
+          background-size: 64px 64px;
+          mask-image: linear-gradient(180deg, #000, transparent 82%);
+          pointer-events: none;
+          z-index: 0;
         }
 
         .page-container {
           max-width: 1220px;
           margin: 0 auto;
+          position: relative;
+          z-index: 1;
         }
 
         .hero {
           position: relative;
           overflow: hidden;
-          border: 1px solid rgba(255, 255, 255, 0.16);
-          border-radius: 34px;
+          border: 1px solid rgba(147, 197, 253, 0.22);
+          border-radius: 38px;
           background:
-            linear-gradient(135deg, rgba(15, 23, 42, 0.92), rgba(30, 41, 59, 0.72)),
-            linear-gradient(135deg, #0f172a, #2563eb);
+            linear-gradient(135deg, rgba(3, 7, 18, 0.94), rgba(15, 23, 42, 0.86)),
+            radial-gradient(circle at 26% 16%, rgba(37, 99, 235, 0.46), transparent 36%),
+            radial-gradient(circle at 88% 12%, rgba(124, 58, 237, 0.42), transparent 32%),
+            linear-gradient(135deg, #020617, #0f172a 54%, #172554);
           color: #ffffff;
-          padding: 34px;
-          box-shadow: 0 36px 100px rgba(2, 6, 23, 0.34);
+          padding: 42px;
+          box-shadow:
+            0 44px 120px rgba(0, 0, 0, 0.48),
+            inset 0 1px 0 rgba(255, 255, 255, 0.12);
+          backdrop-filter: blur(24px);
         }
 
         .hero::before {
@@ -754,16 +798,49 @@ export default function DashboardPage() {
         .hero::after {
           content: "";
           position: absolute;
-          width: 420px;
-          height: 420px;
-          right: -140px;
-          top: -150px;
-          border-radius: 120px;
-          background: linear-gradient(135deg, rgba(37, 99, 235, 0.55), rgba(20, 184, 166, 0.3));
-          transform: rotate(18deg);
-          filter: blur(2px);
-          opacity: 0.9;
+          width: 520px;
+          height: 520px;
+          right: -190px;
+          top: -180px;
+          border-radius: 160px;
+          background: linear-gradient(135deg, rgba(37, 99, 235, 0.72), rgba(20, 184, 166, 0.36), rgba(124, 58, 237, 0.42));
+          transform: rotate(22deg);
+          filter: blur(5px);
+          opacity: 0.95;
           pointer-events: none;
+        }
+
+        .orb {
+          position: absolute;
+          display: block;
+          border-radius: 999px;
+          filter: blur(4px);
+          pointer-events: none;
+          z-index: 0;
+        }
+
+        .orb-one {
+          width: 210px;
+          height: 210px;
+          left: 42%;
+          top: -80px;
+          background: radial-gradient(circle, rgba(96, 165, 250, 0.55), transparent 70%);
+        }
+
+        .orb-two {
+          width: 150px;
+          height: 150px;
+          right: 16%;
+          bottom: 42px;
+          background: radial-gradient(circle, rgba(34, 211, 238, 0.42), transparent 70%);
+        }
+
+        .orb-three {
+          width: 120px;
+          height: 120px;
+          left: -34px;
+          bottom: 28px;
+          background: radial-gradient(circle, rgba(167, 139, 250, 0.42), transparent 72%);
         }
 
         .hero-content,
@@ -818,8 +895,8 @@ export default function DashboardPage() {
         .hero h1 {
           margin: 22px 0 18px;
           max-width: 820px;
-          font-size: clamp(42px, 7vw, 78px);
-          line-height: 0.95;
+          font-size: clamp(48px, 8vw, 92px);
+          line-height: 0.88;
           font-weight: 950;
         }
 
@@ -830,8 +907,8 @@ export default function DashboardPage() {
         .hero-copy > p {
           margin: 0;
           max-width: 720px;
-          color: #dbeafe;
-          font-size: 17px;
+          color: #c7d2fe;
+          font-size: 18px;
           line-height: 1.8;
           font-weight: 500;
         }
@@ -871,9 +948,9 @@ export default function DashboardPage() {
           gap: 10px;
           min-height: 56px;
           padding: 15px 20px;
-          background: linear-gradient(135deg, #ffffff, #dbeafe);
+          background: linear-gradient(135deg, #ffffff, #93c5fd 50%, #22d3ee);
           color: #0f172a;
-          box-shadow: 0 18px 48px rgba(37, 99, 235, 0.28);
+          box-shadow: 0 22px 56px rgba(37, 99, 235, 0.38);
           font-size: 15px;
         }
 
@@ -900,7 +977,7 @@ export default function DashboardPage() {
           min-height: 56px;
           padding: 15px 18px;
           border: 1px solid rgba(255, 255, 255, 0.2);
-          background: rgba(255, 255, 255, 0.08);
+          background: linear-gradient(135deg, rgba(255, 255, 255, 0.13), rgba(96, 165, 250, 0.08));
           color: #ffffff;
           backdrop-filter: blur(12px);
         }
@@ -921,9 +998,11 @@ export default function DashboardPage() {
           border: 1px solid rgba(255, 255, 255, 0.22);
           border-radius: 28px;
           background:
-            linear-gradient(180deg, rgba(255, 255, 255, 0.18), rgba(255, 255, 255, 0.08)),
+            linear-gradient(180deg, rgba(15, 23, 42, 0.22), rgba(255, 255, 255, 0.08)),
             rgba(255, 255, 255, 0.1);
-          box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.18);
+          box-shadow:
+            inset 0 1px 0 rgba(255, 255, 255, 0.18),
+            0 28px 80px rgba(37, 99, 235, 0.16);
           backdrop-filter: blur(22px);
         }
 
@@ -1030,6 +1109,80 @@ export default function DashboardPage() {
           backdrop-filter: blur(12px);
         }
 
+        .hero-action-cards {
+          display: grid;
+          grid-template-columns: repeat(3, minmax(0, 1fr));
+          gap: 16px;
+          margin: -22px 28px 28px;
+          position: relative;
+          z-index: 2;
+        }
+
+        .hero-action-cards button {
+          min-height: 150px;
+          text-align: left;
+          border: 1px solid rgba(147, 197, 253, 0.28);
+          border-radius: 28px;
+          padding: 20px;
+          background:
+            linear-gradient(135deg, rgba(15, 23, 42, 0.72), rgba(30, 41, 59, 0.46)),
+            rgba(255, 255, 255, 0.08);
+          color: #ffffff;
+          box-shadow:
+            0 28px 90px rgba(2, 6, 23, 0.3),
+            inset 0 1px 0 rgba(255, 255, 255, 0.1);
+          backdrop-filter: blur(24px);
+          cursor: pointer;
+          transition:
+            transform 0.22s ease,
+            box-shadow 0.22s ease,
+            border-color 0.22s ease,
+            background 0.22s ease;
+        }
+
+        .hero-action-cards button:hover {
+          transform: translateY(-6px);
+          border-color: rgba(34, 211, 238, 0.72);
+          box-shadow:
+            0 34px 110px rgba(37, 99, 235, 0.28),
+            inset 0 1px 0 rgba(255, 255, 255, 0.14);
+          background:
+            linear-gradient(135deg, rgba(37, 99, 235, 0.36), rgba(15, 23, 42, 0.68)),
+            rgba(255, 255, 255, 0.1);
+        }
+
+        .hero-action-cards span {
+          display: inline-flex;
+          align-items: center;
+          min-height: 28px;
+          padding: 6px 10px;
+          border-radius: 999px;
+          background: rgba(96, 165, 250, 0.14);
+          color: #bfdbfe;
+          font-size: 11px;
+          font-weight: 950;
+          letter-spacing: 0.08em;
+          text-transform: uppercase;
+        }
+
+        .hero-action-cards strong {
+          display: block;
+          margin-top: 18px;
+          color: #ffffff;
+          font-size: 23px;
+          line-height: 1.05;
+          font-weight: 950;
+        }
+
+        .hero-action-cards small {
+          display: block;
+          margin-top: 10px;
+          color: #c7d2fe;
+          font-size: 13px;
+          line-height: 1.55;
+          font-weight: 700;
+        }
+
         .bento-grid {
           display: grid;
           grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -1044,10 +1197,14 @@ export default function DashboardPage() {
         .feedback-panel,
         .sessions-panel,
         .empty-panel {
-          border: 1px solid rgba(226, 232, 240, 0.8);
+          border: 1px solid rgba(147, 197, 253, 0.2);
           border-radius: 28px;
-          background: rgba(255, 255, 255, 0.84);
-          box-shadow: 0 24px 70px rgba(15, 23, 42, 0.08);
+          background:
+            linear-gradient(145deg, rgba(15, 23, 42, 0.76), rgba(30, 41, 59, 0.44)),
+            rgba(255, 255, 255, 0.07);
+          box-shadow:
+            0 28px 90px rgba(2, 6, 23, 0.28),
+            inset 0 1px 0 rgba(255, 255, 255, 0.08);
           backdrop-filter: blur(18px);
         }
 
@@ -1069,7 +1226,7 @@ export default function DashboardPage() {
           width: 190px;
           height: 190px;
           border-radius: 58px;
-          opacity: 0.16;
+          opacity: 0.32;
           transform: rotate(18deg);
         }
 
@@ -1111,7 +1268,7 @@ export default function DashboardPage() {
           width: 42px;
           height: 42px;
           border-radius: 16px;
-          background: #0f172a;
+          background: linear-gradient(135deg, #2563eb, #22d3ee);
           color: #ffffff;
           font-size: 12px;
           font-weight: 950;
@@ -1120,12 +1277,12 @@ export default function DashboardPage() {
         .tile-line {
           flex: 1;
           height: 1px;
-          background: linear-gradient(90deg, #cbd5e1, transparent);
+          background: linear-gradient(90deg, rgba(147, 197, 253, 0.62), transparent);
         }
 
         .stat-tile strong {
           display: block;
-          color: #0f172a;
+          color: #ffffff;
           font-size: 46px;
           line-height: 0.95;
           font-weight: 950;
@@ -1133,13 +1290,13 @@ export default function DashboardPage() {
 
         .stat-tile p {
           margin: 12px 0 8px;
-          color: #0f172a;
+          color: #e0f2fe;
           font-size: 16px;
           font-weight: 900;
         }
 
         .stat-tile small {
-          color: #64748b;
+          color: #a5b4fc;
           font-size: 13px;
           line-height: 1.6;
           font-weight: 650;
@@ -1150,8 +1307,8 @@ export default function DashboardPage() {
           min-height: 210px;
           padding: 24px;
           background:
-            linear-gradient(135deg, rgba(255, 255, 255, 0.92), rgba(239, 246, 255, 0.9)),
-            #ffffff;
+            radial-gradient(circle at top right, rgba(37, 99, 235, 0.3), transparent 34%),
+            linear-gradient(135deg, rgba(15, 23, 42, 0.82), rgba(30, 41, 59, 0.58));
           transition:
             transform 0.2s ease,
             box-shadow 0.22s ease,
@@ -1161,7 +1318,7 @@ export default function DashboardPage() {
         .strategy-card h2,
         .section-heading h2 {
           margin: 8px 0 0;
-          color: #0f172a;
+          color: #f8fafc;
           font-size: clamp(24px, 3vw, 34px);
           line-height: 1.08;
           font-weight: 950;
@@ -1169,7 +1326,7 @@ export default function DashboardPage() {
 
         .strategy-card > p:not(.section-eyebrow) {
           margin: 14px 0 0;
-          color: #475569;
+          color: #c7d2fe;
           font-size: 15px;
           line-height: 1.75;
           font-weight: 550;
@@ -1181,10 +1338,11 @@ export default function DashboardPage() {
         .resume-button {
           min-height: 44px;
           padding: 11px 14px;
-          border: 1px solid #cbd5e1;
-          background: #ffffff;
-          color: #0f172a;
-          box-shadow: 0 12px 28px rgba(15, 23, 42, 0.06);
+          border: 1px solid rgba(147, 197, 253, 0.26);
+          background: linear-gradient(135deg, rgba(255, 255, 255, 0.14), rgba(96, 165, 250, 0.1));
+          color: #ffffff;
+          box-shadow: 0 14px 34px rgba(2, 6, 23, 0.2);
+          backdrop-filter: blur(14px);
         }
 
         .section-heading {
@@ -1212,7 +1370,8 @@ export default function DashboardPage() {
           min-height: 430px;
           padding: 24px;
           background:
-            linear-gradient(160deg, rgba(15, 23, 42, 0.96), rgba(30, 41, 59, 0.88)),
+            radial-gradient(circle at 30% 20%, rgba(37, 99, 235, 0.42), transparent 34%),
+            linear-gradient(160deg, rgba(3, 7, 18, 0.96), rgba(15, 23, 42, 0.9)),
             #0f172a;
           color: #ffffff;
         }
@@ -1321,6 +1480,9 @@ export default function DashboardPage() {
           padding: 24px;
           display: grid;
           gap: 14px;
+          background:
+            radial-gradient(circle at top right, rgba(20, 184, 166, 0.18), transparent 34%),
+            linear-gradient(145deg, rgba(15, 23, 42, 0.82), rgba(30, 41, 59, 0.5));
         }
 
         .metric-row {
@@ -1329,14 +1491,16 @@ export default function DashboardPage() {
           gap: 18px;
           align-items: center;
           padding: 16px;
-          border: 1px solid #e2e8f0;
+          border: 1px solid rgba(147, 197, 253, 0.18);
           border-radius: 20px;
-          background: linear-gradient(180deg, #ffffff, #f8fafc);
+          background:
+            linear-gradient(135deg, rgba(255, 255, 255, 0.11), rgba(96, 165, 250, 0.06)),
+            rgba(15, 23, 42, 0.24);
         }
 
         .metric-copy strong {
           display: block;
-          color: #0f172a;
+          color: #f8fafc;
           font-size: 15px;
           font-weight: 950;
         }
@@ -1344,7 +1508,7 @@ export default function DashboardPage() {
         .metric-copy span {
           display: block;
           margin-top: 5px;
-          color: #64748b;
+          color: #a5b4fc;
           font-size: 13px;
           line-height: 1.45;
           font-weight: 700;
@@ -1358,7 +1522,7 @@ export default function DashboardPage() {
         }
 
         .metric-value > span {
-          color: #0f172a;
+          color: #e0f2fe;
           font-size: 14px;
           font-weight: 950;
           text-align: right;
@@ -1368,7 +1532,7 @@ export default function DashboardPage() {
           overflow: hidden;
           height: 11px;
           border-radius: 999px;
-          background: #e2e8f0;
+          background: rgba(255, 255, 255, 0.12);
         }
 
         .metric-fill {
@@ -1381,13 +1545,13 @@ export default function DashboardPage() {
           grid-column: 1 / -1;
           padding: 24px;
           background:
-            linear-gradient(135deg, rgba(255, 255, 255, 0.92), rgba(239, 246, 255, 0.86)),
-            #ffffff;
+            radial-gradient(circle at 12% 16%, rgba(124, 58, 237, 0.24), transparent 34%),
+            linear-gradient(135deg, rgba(15, 23, 42, 0.82), rgba(30, 41, 59, 0.52));
         }
 
         .feedback-panel h3 {
           margin: 8px 0 18px;
-          color: #0f172a;
+          color: #f8fafc;
           font-size: 28px;
           line-height: 1.1;
           font-weight: 950;
@@ -1401,9 +1565,11 @@ export default function DashboardPage() {
 
         .feedback-list div {
           min-width: 0;
-          border: 1px solid #e2e8f0;
+          border: 1px solid rgba(147, 197, 253, 0.18);
           border-radius: 22px;
-          background: rgba(255, 255, 255, 0.75);
+          background:
+            linear-gradient(180deg, rgba(255, 255, 255, 0.11), rgba(255, 255, 255, 0.05)),
+            rgba(15, 23, 42, 0.22);
           padding: 18px;
         }
 
@@ -1435,7 +1601,7 @@ export default function DashboardPage() {
 
         .feedback-list p {
           margin: 0;
-          color: #475569;
+          color: #dbeafe;
           font-size: 14px;
           line-height: 1.72;
           font-weight: 550;
@@ -1451,6 +1617,9 @@ export default function DashboardPage() {
           display: grid;
           gap: 12px;
           padding: 14px;
+          background:
+            radial-gradient(circle at top left, rgba(37, 99, 235, 0.18), transparent 36%),
+            linear-gradient(145deg, rgba(15, 23, 42, 0.82), rgba(30, 41, 59, 0.5));
         }
 
         .session-row {
@@ -1459,9 +1628,11 @@ export default function DashboardPage() {
           align-items: center;
           gap: 16px;
           padding: 16px;
-          border: 1px solid #e2e8f0;
+          border: 1px solid rgba(147, 197, 253, 0.18);
           border-radius: 22px;
-          background: linear-gradient(180deg, #ffffff, #f8fafc);
+          background:
+            linear-gradient(135deg, rgba(255, 255, 255, 0.12), rgba(96, 165, 250, 0.06)),
+            rgba(15, 23, 42, 0.24);
           transition:
             transform 0.2s ease,
             box-shadow 0.22s ease,
@@ -1474,7 +1645,7 @@ export default function DashboardPage() {
           width: 48px;
           height: 48px;
           border-radius: 16px;
-          background: #0f172a;
+          background: linear-gradient(135deg, #2563eb, #7c3aed);
           color: #ffffff;
           font-size: 13px;
           font-weight: 950;
@@ -1486,7 +1657,7 @@ export default function DashboardPage() {
 
         .session-main h3 {
           margin: 0 0 7px;
-          color: #0f172a;
+          color: #f8fafc;
           font-size: 16px;
           line-height: 1.25;
           font-weight: 950;
@@ -1494,7 +1665,7 @@ export default function DashboardPage() {
 
         .session-main p {
           margin: 0;
-          color: #64748b;
+          color: #a5b4fc;
           font-size: 14px;
           line-height: 1.5;
           font-weight: 650;
@@ -1530,8 +1701,8 @@ export default function DashboardPage() {
         .empty-panel {
           padding: 30px;
           background:
-            linear-gradient(135deg, rgba(255, 255, 255, 0.94), rgba(239, 246, 255, 0.86)),
-            #ffffff;
+            radial-gradient(circle at top right, rgba(37, 99, 235, 0.24), transparent 34%),
+            linear-gradient(135deg, rgba(15, 23, 42, 0.84), rgba(30, 41, 59, 0.54));
         }
 
         .empty-panel > span {
@@ -1544,7 +1715,7 @@ export default function DashboardPage() {
 
         .empty-panel h3 {
           margin: 10px 0 8px;
-          color: #0f172a;
+          color: #f8fafc;
           font-size: 26px;
           line-height: 1.12;
           font-weight: 950;
@@ -1553,7 +1724,7 @@ export default function DashboardPage() {
         .empty-panel p {
           margin: 0;
           max-width: 720px;
-          color: #64748b;
+          color: #c7d2fe;
           font-size: 15px;
           line-height: 1.75;
           font-weight: 600;
