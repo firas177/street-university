@@ -90,6 +90,59 @@ export async function getProfile(token) {
   return getMe(token);
 }
 
+export async function getAdminAnalyticsSummary(token) {
+  return fetchJson(
+    "/admin/analytics/summary",
+    {
+      method: "GET",
+      headers: authHeaders(token),
+    },
+    "Impossible de récupérer le résumé analytics admin"
+  );
+}
+
+export async function getAdminAnalyticsUsers(
+  token,
+  sortBy = "average_score",
+  order = "desc"
+) {
+  const params = new URLSearchParams();
+  params.set("sort_by", sortBy || "average_score");
+  params.set("order", order || "desc");
+
+  return fetchJson(
+    `/admin/analytics/users?${params.toString()}`,
+    {
+      method: "GET",
+      headers: authHeaders(token),
+    },
+    "Impossible de récupérer la liste analytics utilisateurs"
+  );
+}
+
+export async function askAdminAssistant(token, message) {
+  return fetchJson(
+    "/admin/assistant",
+    {
+      method: "POST",
+      headers: authHeaders(token),
+      body: JSON.stringify({ message }),
+    },
+    "Impossible d'interroger l'assistant admin"
+  );
+}
+
+export async function getAdminUserProgress(token, userId) {
+  return fetchJson(
+    `/admin/analytics/users/${userId}/progress`,
+    {
+      method: "GET",
+      headers: authHeaders(token),
+    },
+    "Impossible de récupérer la progression de cet utilisateur"
+  );
+}
+
 export async function getScenarios(token) {
   return fetchJson(
     "/scenarios",

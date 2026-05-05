@@ -1,6 +1,8 @@
 from fastapi import FastAPI, Depends, HTTPException, status, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session, joinedload
+from sqlalchemy import func, case, desc, asc
+from sqlalchemy.sql import nullslast
 from datetime import datetime, timezone, timedelta
 import re
 import json
@@ -631,6 +633,536 @@ def me(current_user=Depends(get_current_user)):
 @app.get("/admin/test")
 def admin_test(current_user=Depends(require_roles("admin"))):
     return {"message": f"Bienvenue admin {current_user.email}"}
+
+
+# ============================================================
+# ADMIN ANALYTICS
+# ============================================================
+
+def _round1(value):
+    try:
+        if value is None:
+            return None
+        return round(float(value), 1)
+    except Exception:
+        return None
+
+
+def _best_user_from_row(row):
+    if not row:
+        return None
+    user_id, full_name, email, score = row
+    return {
+        "user_id": str(user_id),
+        "full_name": full_name,
+        "email": email,
+        "score": _round1(score),
+    }
+
+
+def _top_user_by_feedback_metric(db: Session, metric_col):
+    row = (
+        db.query(
+            models.User.id,
+            models.User.full_name,
+            models.User.email,
+            func.avg(metric_col).label("avg_score"),
+        )
+        .join(models.SessionFeedback, models.SessionFeedback.user_id == models.User.id)
+        .group_by(models.User.id, models.User.full_name, models.User.email)
+        .order_by(nullslast(desc(func.avg(metric_col))))
+        .first()
+    )
+    return _best_user_from_row(row)
+
+
+@app.get(
+    "/admin/analytics/summary",
+    response_model=schemas.AdminAnalyticsSummaryOut,
+)
+def admin_analytics_summary(
+    db: Session = Depends(get_db),
+    current_user=Depends(require_roles("admin")),
+):
+    total_users = db.query(models.User).count()
+
+    total_sessions = db.query(models.Session).count()
+    completed_sessions = (
+        db.query(models.Session).filter(models.Session.status == "completed").count()
+    )
+    active_sessions = (
+        db.query(models.Session).filter(models.Session.status == "active").count()
+    )
+
+    average_score = db.query(func.avg(models.SessionFeedback.overall_score)).scalar()
+
+    summary = {
+        "total_users": int(total_users or 0),
+        "total_sessions": int(total_sessions or 0),
+        "completed_sessions": int(completed_sessions or 0),
+        "active_sessions": int(active_sessions or 0),
+        "average_score": _round1(average_score),
+        "best_overall_user": _top_user_by_feedback_metric(
+            db, models.SessionFeedback.overall_score
+        ),
+        "best_communication_user": _top_user_by_feedback_metric(
+            db, models.SessionFeedback.communication_score
+        ),
+        "best_confidence_user": _top_user_by_feedback_metric(
+            db, models.SessionFeedback.confidence_score
+        ),
+        "best_professionalism_user": _top_user_by_feedback_metric(
+            db, models.SessionFeedback.professionalism_score
+        ),
+    }
+
+    return summary
+
+
+@app.get(
+    "/admin/analytics/users",
+    response_model=list[schemas.AdminUserAnalyticsOut],
+)
+def admin_analytics_users(
+    sort_by: str = "average_score",
+    order: str = "desc",
+    db: Session = Depends(get_db),
+    current_user=Depends(require_roles("admin")),
+):
+    sessions_subq = (
+        db.query(
+            models.Session.user_id.label("user_id"),
+            func.count(models.Session.id).label("sessions_count"),
+            func.sum(
+                case((models.Session.status == "completed", 1), else_=0)
+            ).label("completed_sessions_count"),
+        )
+        .group_by(models.Session.user_id)
+        .subquery()
+    )
+
+    feedback_subq = (
+        db.query(
+            models.SessionFeedback.user_id.label("user_id"),
+            func.avg(models.SessionFeedback.overall_score).label("average_score"),
+            func.avg(models.SessionFeedback.communication_score).label(
+                "communication_average"
+            ),
+            func.avg(models.SessionFeedback.confidence_score).label("confidence_average"),
+            func.avg(models.SessionFeedback.clarity_score).label("clarity_average"),
+            func.avg(models.SessionFeedback.relevance_score).label("relevance_average"),
+            func.avg(models.SessionFeedback.professionalism_score).label(
+                "professionalism_average"
+            ),
+        )
+        .group_by(models.SessionFeedback.user_id)
+        .subquery()
+    )
+
+    query = (
+        db.query(
+            models.User.id.label("user_id"),
+            models.User.full_name,
+            models.User.email,
+            models.User.role,
+            models.User.created_at,
+            func.coalesce(sessions_subq.c.sessions_count, 0).label("sessions_count"),
+            func.coalesce(sessions_subq.c.completed_sessions_count, 0).label(
+                "completed_sessions_count"
+            ),
+            feedback_subq.c.average_score,
+            feedback_subq.c.communication_average,
+            feedback_subq.c.confidence_average,
+            feedback_subq.c.clarity_average,
+            feedback_subq.c.relevance_average,
+            feedback_subq.c.professionalism_average,
+        )
+        .outerjoin(sessions_subq, sessions_subq.c.user_id == models.User.id)
+        .outerjoin(feedback_subq, feedback_subq.c.user_id == models.User.id)
+    )
+
+    sort_map = {
+        "average_score": feedback_subq.c.average_score,
+        "communication_average": feedback_subq.c.communication_average,
+        "confidence_average": feedback_subq.c.confidence_average,
+        "clarity_average": feedback_subq.c.clarity_average,
+        "relevance_average": feedback_subq.c.relevance_average,
+        "professionalism_average": feedback_subq.c.professionalism_average,
+        "sessions_count": func.coalesce(sessions_subq.c.sessions_count, 0),
+        "completed_sessions_count": func.coalesce(
+            sessions_subq.c.completed_sessions_count, 0
+        ),
+        "created_at": models.User.created_at,
+    }
+
+    if sort_by not in sort_map:
+        sort_by = "average_score"
+    sort_col = sort_map[sort_by]
+
+    if order not in ("asc", "desc"):
+        order = "desc"
+
+    sort_expr = asc(sort_col) if order == "asc" else desc(sort_col)
+    query = query.order_by(nullslast(sort_expr), models.User.created_at.desc())
+
+    rows = query.all()
+
+    result = []
+    for row in rows:
+        result.append(
+            {
+                "user_id": str(row.user_id),
+                "full_name": row.full_name,
+                "email": row.email,
+                "role": row.role,
+                "created_at": row.created_at,
+                "sessions_count": int(row.sessions_count or 0),
+                "completed_sessions_count": int(row.completed_sessions_count or 0),
+                "average_score": _round1(row.average_score),
+                "communication_average": _round1(row.communication_average),
+                "confidence_average": _round1(row.confidence_average),
+                "clarity_average": _round1(row.clarity_average),
+                "relevance_average": _round1(row.relevance_average),
+                "professionalism_average": _round1(row.professionalism_average),
+            }
+        )
+
+    return result
+
+
+@app.get(
+    "/admin/analytics/users/{user_id}/progress",
+    response_model=schemas.AdminUserProgressOut,
+)
+def admin_user_progress(
+    user_id: str,
+    db: Session = Depends(get_db),
+    current_user=Depends(require_roles("admin")),
+):
+    user = db.query(models.User).filter(models.User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="Utilisateur introuvable")
+
+    sessions_count = db.query(models.Session).filter(models.Session.user_id == user_id).count()
+    completed_sessions_count = (
+        db.query(models.Session)
+        .filter(models.Session.user_id == user_id, models.Session.status == "completed")
+        .count()
+    )
+
+    feedback_rows = (
+        db.query(models.SessionFeedback)
+        .filter(models.SessionFeedback.user_id == user_id)
+        .order_by(models.SessionFeedback.created_at.asc())
+        .all()
+    )
+
+    def avg(values):
+        valid = [v for v in values if v is not None]
+        if not valid:
+            return None
+        return round(sum(valid) / len(valid), 1)
+
+    overall_values = [f.overall_score for f in feedback_rows]
+    comm_values = [f.communication_score for f in feedback_rows]
+    conf_values = [f.confidence_score for f in feedback_rows]
+    clarity_values = [f.clarity_score for f in feedback_rows]
+    rel_values = [f.relevance_score for f in feedback_rows]
+    prof_values = [f.professionalism_score for f in feedback_rows]
+
+    first_score = None
+    latest_score = None
+    best_score = None
+    valid_overall = [v for v in overall_values if v is not None]
+    if valid_overall:
+        first_score = valid_overall[0]
+        latest_score = valid_overall[-1]
+        best_score = max(valid_overall)
+
+    improvement = None
+    if first_score is not None and latest_score is not None:
+        improvement = round(latest_score - first_score, 1)
+
+    # Progression list (ordered by completed_at asc, fallback created_at)
+    session_rows = (
+        db.query(models.Session)
+        .options(
+            joinedload(models.Session.scenario),
+            joinedload(models.Session.feedback),
+        )
+        .filter(models.Session.user_id == user_id)
+        .order_by(models.Session.created_at.asc())
+        .all()
+    )
+
+    progress_items = []
+    for s in session_rows:
+        fb = getattr(s, "feedback", None)
+        if not fb:
+            continue
+
+        progress_items.append(
+            {
+                "session_id": str(s.id),
+                "scenario_title": getattr(getattr(s, "scenario", None), "title", None),
+                "scenario_category": getattr(getattr(s, "scenario", None), "category", None),
+                "completed_at": s.completed_at or s.created_at,
+                "overall_score": _round1(fb.overall_score),
+                "communication_score": _round1(fb.communication_score),
+                "confidence_score": _round1(fb.confidence_score),
+                "clarity_score": _round1(fb.clarity_score),
+                "relevance_score": _round1(fb.relevance_score),
+                "professionalism_score": _round1(fb.professionalism_score),
+                "voice_sentiment_label": fb.voice_sentiment_label,
+                "voice_sentiment_score": _round1(fb.voice_sentiment_score),
+            }
+        )
+
+    progress_items.sort(
+        key=lambda item: (item.get("completed_at") or datetime.min)
+    )
+
+    response = {
+        "user": {
+            "user_id": str(user.id),
+            "full_name": user.full_name,
+            "email": user.email,
+            "role": user.role,
+        },
+        "summary": {
+            "sessions_count": int(sessions_count or 0),
+            "completed_sessions_count": int(completed_sessions_count or 0),
+            "average_score": avg(overall_values),
+            "communication_average": avg(comm_values),
+            "confidence_average": avg(conf_values),
+            "clarity_average": avg(clarity_values),
+            "relevance_average": avg(rel_values),
+            "professionalism_average": avg(prof_values),
+            "best_score": _round1(best_score),
+            "latest_score": _round1(latest_score),
+            "improvement": _round1(improvement),
+        },
+        "skill_averages": {
+            "communication": avg(comm_values),
+            "confidence": avg(conf_values),
+            "clarity": avg(clarity_values),
+            "relevance": avg(rel_values),
+            "professionalism": avg(prof_values),
+        },
+        "progression": progress_items,
+    }
+
+    return response
+
+
+def _assistant_help_payload():
+    examples = [
+        "Qui a la meilleure moyenne ?",
+        "Qui a la meilleure communication ?",
+        "Qui a la meilleure confiance ?",
+        "Qui a le meilleur professionnalisme ?",
+        "Quel utilisateur a le plus de sessions ?",
+        "Combien d'utilisateurs sont inscrits ?",
+        "Combien de sessions sont terminées ?",
+        "Combien de sessions sont actives ?",
+        "Montre-moi les 5 meilleurs utilisateurs",
+        "Top 5 communication",
+        "Top 5 confiance",
+    ]
+    return {
+        "answer": (
+            "Je peux répondre à des questions admin contrôlées (sans SQL). "
+            "Exemples :\n- " + "\n- ".join(examples)
+        ),
+        "intent": "fallback_help",
+        "data": {"examples": examples},
+    }
+
+
+def _detect_admin_intent(text: str):
+    t = (text or "").lower().strip()
+    if not t:
+        return "fallback_help"
+
+    if "combien" in t and ("utilisateur" in t or "inscrit" in t):
+        return "total_users"
+    if "combien" in t and ("termin" in t or "compl" in t):
+        return "completed_sessions"
+    if "combien" in t and "active" in t:
+        return "active_sessions"
+    if ("plus" in t and "session" in t) or "le plus de sessions" in t:
+        return "most_sessions_user"
+
+    if "top" in t and "communication" in t:
+        return "top_users_communication"
+    if "top" in t and ("confiance" in t or "confidence" in t):
+        return "top_users_confidence"
+    if "top" in t and ("moyenne" in t or "meilleur" in t):
+        return "top_users_average"
+    if ("5" in t or "cinq" in t) and ("meilleur" in t or "top" in t):
+        return "top_users_average"
+
+    if "meilleure" in t and ("communication" in t):
+        return "best_communication_user"
+    if "meilleure" in t and ("confiance" in t or "confidence" in t):
+        return "best_confidence_user"
+    if "meilleur" in t and ("professionnalisme" in t):
+        return "best_professionalism_user"
+    if "meilleure" in t and ("moyenne" in t or "score" in t):
+        return "best_average_user"
+
+    return "fallback_help"
+
+
+@app.post("/admin/assistant", response_model=schemas.AdminAssistantOut)
+def admin_assistant(
+    payload: schemas.AdminAssistantIn,
+    db: Session = Depends(get_db),
+    current_user=Depends(require_roles("admin")),
+):
+    message = (payload.message or "").strip()
+    intent = _detect_admin_intent(message)
+
+    if intent == "fallback_help":
+        return _assistant_help_payload()
+
+    if intent == "total_users":
+        total_users = db.query(models.User).count()
+        return {
+            "answer": f"Il y a {int(total_users or 0)} utilisateur(s) inscrit(s).",
+            "intent": intent,
+            "data": {"total_users": int(total_users or 0)},
+        }
+
+    if intent == "completed_sessions":
+        completed_sessions = (
+            db.query(models.Session).filter(models.Session.status == "completed").count()
+        )
+        return {
+            "answer": f"{int(completed_sessions or 0)} session(s) sont terminée(s).",
+            "intent": intent,
+            "data": {"completed_sessions": int(completed_sessions or 0)},
+        }
+
+    if intent == "active_sessions":
+        active_sessions = (
+            db.query(models.Session).filter(models.Session.status == "active").count()
+        )
+        return {
+            "answer": f"{int(active_sessions or 0)} session(s) sont active(s).",
+            "intent": intent,
+            "data": {"active_sessions": int(active_sessions or 0)},
+        }
+
+    if intent == "most_sessions_user":
+        row = (
+            db.query(
+                models.User.id,
+                models.User.full_name,
+                models.User.email,
+                func.count(models.Session.id).label("sessions_count"),
+            )
+            .join(models.Session, models.Session.user_id == models.User.id)
+            .group_by(models.User.id, models.User.full_name, models.User.email)
+            .order_by(desc(func.count(models.Session.id)))
+            .first()
+        )
+        if not row:
+            return {
+                "answer": "Aucune session trouvée pour le moment.",
+                "intent": intent,
+                "data": None,
+            }
+
+        data = {
+            "user_id": str(row[0]),
+            "full_name": row[1],
+            "email": row[2],
+            "sessions_count": int(row[3] or 0),
+        }
+        display = data["full_name"] or data["email"]
+        return {
+            "answer": f"{display} a le plus de sessions ({data['sessions_count']}).",
+            "intent": intent,
+            "data": data,
+        }
+
+    if intent in (
+        "best_average_user",
+        "best_communication_user",
+        "best_confidence_user",
+        "best_professionalism_user",
+    ):
+        metric = {
+            "best_average_user": models.SessionFeedback.overall_score,
+            "best_communication_user": models.SessionFeedback.communication_score,
+            "best_confidence_user": models.SessionFeedback.confidence_score,
+            "best_professionalism_user": models.SessionFeedback.professionalism_score,
+        }[intent]
+
+        best = _top_user_by_feedback_metric(db, metric)
+        if not best:
+            return {
+                "answer": "Aucun feedback disponible pour établir un classement.",
+                "intent": intent,
+                "data": None,
+            }
+
+        label = {
+            "best_average_user": "la meilleure moyenne",
+            "best_communication_user": "la meilleure communication",
+            "best_confidence_user": "la meilleure confiance",
+            "best_professionalism_user": "le meilleur professionnalisme",
+        }[intent]
+        display = best["full_name"] or best["email"]
+        score = best["score"]
+        return {
+            "answer": f"{display} a {label} ({score if score is not None else 'N/A'}).",
+            "intent": intent,
+            "data": best,
+        }
+
+    if intent in ("top_users_average", "top_users_communication", "top_users_confidence"):
+        metric = {
+            "top_users_average": models.SessionFeedback.overall_score,
+            "top_users_communication": models.SessionFeedback.communication_score,
+            "top_users_confidence": models.SessionFeedback.confidence_score,
+        }[intent]
+
+        rows = (
+            db.query(
+                models.User.id,
+                models.User.full_name,
+                models.User.email,
+                func.avg(metric).label("avg_score"),
+            )
+            .join(models.SessionFeedback, models.SessionFeedback.user_id == models.User.id)
+            .group_by(models.User.id, models.User.full_name, models.User.email)
+            .order_by(nullslast(desc(func.avg(metric))))
+            .limit(5)
+            .all()
+        )
+
+        if not rows:
+            return {
+                "answer": "Aucun feedback disponible pour afficher un top 5.",
+                "intent": intent,
+                "data": [],
+            }
+
+        data = [_best_user_from_row(r) for r in rows]
+        title = {
+            "top_users_average": "Top 5 moyenne",
+            "top_users_communication": "Top 5 communication",
+            "top_users_confidence": "Top 5 confiance",
+        }[intent]
+        return {
+            "answer": f"{title} prêt. Voulez-vous le détail ?",
+            "intent": intent,
+            "data": data,
+        }
+
+    return _assistant_help_payload()
 
 
 # ============================================================

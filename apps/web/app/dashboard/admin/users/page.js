@@ -1,84 +1,131 @@
-"use client";
+\"use client\";
 
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
-import Navbar from "../../../components/Navbar";
-import Alert from "../../../components/ui/Alert";
-import Button from "../../../components/ui/Button";
-import Card from "../../../components/ui/Card";
-import SectionHeader from "../../../components/ui/SectionHeader";
-import { getMe } from "../../../lib/api";
-
-const mockUsers = [
-  {
-    id: "1",
-    full_name: "Admin User",
-    email: "admin@streetu.com",
-    role: "admin",
-    created_at: "2026-04-01",
-  },
-  {
-    id: "2",
-    full_name: "Student Example",
-    email: "student1@streetu.com",
-    role: "student",
-    created_at: "2026-04-03",
-  },
-  {
-    id: "3",
-    full_name: "Mentor Example",
-    email: "mentor1@streetu.com",
-    role: "mentor",
-    created_at: "2026-04-05",
-  },
-];
+import { useEffect, useMemo, useState } from \"react\";
+import { useRouter } from \"next/navigation\";
+import Navbar from \"../../../components/Navbar\";
+import Alert from \"../../../components/ui/Alert\";
+import { getAdminAnalyticsUsers, getAdminUserProgress, getMe } from \"../../../lib/api\";
 
 export default function AdminUsersPage() {
   const router = useRouter();
 
-  const [user, setUser] = useState(null);
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
-  const [info, setInfo] = useState("");
+  const [error, setError] = useState(\"\");
+
+  const [sortBy, setSortBy] = useState(\"average_score\");
+  const [order, setOrder] = useState(\"desc\");
+
+  const [accessDenied, setAccessDenied] = useState(false);
+
+  const [selectedUserId, setSelectedUserId] = useState(\"\");
+  const [progress, setProgress] = useState(null);
+  const [progressLoading, setProgressLoading] = useState(false);
+  const [progressError, setProgressError] = useState(\"\");
 
   useEffect(() => {
     async function loadPage() {
       try {
-        const token = localStorage.getItem("token");
+        const token = localStorage.getItem(\"token\");
 
         if (!token) {
-          router.replace("/auth/login");
+          router.replace(\"/auth/login\");
           return;
         }
 
         setLoading(true);
-        setError("");
-        setInfo("");
+        setError(\"\");
+        setAccessDenied(false);
 
         const me = await getMe(token);
-
-        if (!me || me.role !== "admin") {
-          router.replace("/dashboard");
+        if (!me || me.role !== \"admin\") {
+          setAccessDenied(true);
           return;
         }
 
-        setUser(me);
-
-        // Fallback frontend temporaire en attendant un vrai endpoint backend users
-        setUsers(mockUsers);
-        setInfo(
-          "Vue de démonstration admin. Branchez plus tard un vrai endpoint backend pour la gestion réelle des utilisateurs."
-        );
+        const usersData = await getAdminAnalyticsUsers(token, sortBy, order);
+        setUsers(Array.isArray(usersData) ? usersData : []);
       } catch (err) {
-        setError(err?.message || "Impossible de charger la page utilisateurs.");
+        const msg = err?.message || \"Impossible de charger la page utilisateurs.\";
+        setError(msg);
+        if (String(msg).toLowerCase().includes(\"accès refusé\")) {
+          setAccessDenied(true);
+        }
       } finally {
         setLoading(false);
       }
     }
 
     loadPage();
-  }, [router]);
+  }, [router, sortBy, order]);
+
+  const progressPoints = useMemo(() => {
+    const items = progress?.progression;
+    if (!Array.isArray(items)) return [];
+    return items
+      .map((it, idx) => ({
+        idx,
+        score: Number(it?.overall_score),
+        session_id: it?.session_id,
+      }))
+      .filter((p) => Number.isFinite(p.score));
+  }, [progress]);
+
+  function fmtScore(value) {
+    const num = Number(value);
+    if (!Number.isFinite(num)) return \"N/A\";
+    return num.toFixed(1);
+  }
+
+  function pctFrom10(value) {
+    const num = Number(value);
+    if (!Number.isFinite(num)) return 0;
+    return Math.max(0, Math.min(100, num * 10));
+  }
+
+  function formatDate(value) {
+    if (!value) return \"Non disponible\";
+    try {
+      return new Intl.DateTimeFormat(\"fr-FR\", {\n        dateStyle: \"medium\",\n        timeStyle: \"short\",\n      }).format(new Date(value));\n    } catch {\n      return \"Date invalide\";\n    }
+  }
+
+  function sentimentLabel(value) {
+    const normalized = String(value || \"\").toLowerCase();
+    if (normalized === \"positive\") return \"Positif\";
+    if (normalized === \"negative\") return \"Négatif\";
+    if (normalized === \"neutral\") return \"Neutre\";
+    return value || \"Non disponible\";
+  }
+
+  function sentimentClass(value) {
+    const normalized = String(value || \"\").toLowerCase();
+    if (normalized === \"positive\") return \"positive\";
+    if (normalized === \"negative\") return \"negative\";
+    if (normalized === \"neutral\") return \"neutral\";
+    return \"empty\";
+  }
+
+  async function handleViewEvolution(userId) {
+    try {
+      const token = localStorage.getItem(\"token\");
+      if (!token) {
+        router.replace(\"/auth/login\");
+        return;
+      }
+
+      setSelectedUserId(userId);
+      setProgress(null);
+      setProgressError(\"\");
+      setProgressLoading(true);
+
+      const data = await getAdminUserProgress(token, userId);
+      setProgress(data || null);
+    } catch (err) {
+      setProgressError(err?.message || \"Impossible de charger l’évolution.\");
+    } finally {
+      setProgressLoading(false);
+    }
+  }
 
   if (loading) {
     return (
