@@ -7,7 +7,7 @@ import Alert from "../../../components/ui/Alert";
 import Button from "../../../components/ui/Button";
 import Card from "../../../components/ui/Card";
 import SectionHeader from "../../../components/ui/SectionHeader";
-import { getMe, getScenarios } from "../../../lib/api";
+import { getMe, getScenarios, deleteScenario } from "../../../lib/api";
 
 export default function AdminScenariosPage() {
   const router = useRouter();
@@ -50,6 +50,33 @@ export default function AdminScenariosPage() {
 
     loadPage();
   }, [router]);
+
+  async function handleDeleteScenario(scenarioId) {
+    const confirmDelete = window.confirm(
+      "Voulez-vous vraiment supprimer ce scénario ?"
+    );
+
+    if (!confirmDelete) return;
+
+    try {
+      const token = localStorage.getItem("token");
+
+      if (!token) {
+        router.replace("/auth/login");
+        return;
+      }
+
+      await deleteScenario(token, scenarioId);
+
+      setScenarios((prev) =>
+        prev.filter((scenario) => scenario.id !== scenarioId)
+      );
+
+      alert("Scénario supprimé avec succès.");
+    } catch (err) {
+      alert(err?.message || "Erreur lors de la suppression du scénario.");
+    }
+  }
 
   if (loading) {
     return (
@@ -149,6 +176,7 @@ export default function AdminScenariosPage() {
                   Consulte les scénarios existants et prépare leur gestion depuis
                   l’espace administrateur.
                 </p>
+
                 {user?.email && (
                   <p className="admin-email">Connecté avec : {user.email}</p>
                 )}
@@ -156,7 +184,9 @@ export default function AdminScenariosPage() {
 
               <div className="hero-actions">
                 <Button
-                  onClick={() => router.push("/dashboard/admin/scenarios/create")}
+                  onClick={() =>
+                    router.push("/dashboard/admin/scenarios/create")
+                  }
                 >
                   Créer un scénario
                 </Button>
@@ -189,6 +219,7 @@ export default function AdminScenariosPage() {
                         <h3 className="card-title">
                           {scenario.title || "Sans titre"}
                         </h3>
+
                         <p className="meta-text">
                           {scenario.category || "Sans catégorie"} •{" "}
                           {scenario.difficulty || "Niveau non défini"}
@@ -208,9 +239,13 @@ export default function AdminScenariosPage() {
                         Voir côté user
                       </Button>
 
-                      <Button variant="secondary" onClick={() => {}}>
-                        Supprimer bientôt
-                      </Button>
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteScenario(scenario.id)}
+                        className="delete-button"
+                      >
+                        Supprimer
+                      </button>
                     </div>
                   </Card>
                 ))}
@@ -334,6 +369,24 @@ export default function AdminScenariosPage() {
           margin-top: 16px;
         }
 
+        .delete-button {
+          border: 1px solid #fecaca;
+          background: #ffffff;
+          color: #dc2626;
+          border-radius: 16px;
+          padding: 14px 22px;
+          font-size: 15px;
+          font-weight: 800;
+          cursor: pointer;
+          transition: 0.2s ease;
+        }
+
+        .delete-button:hover {
+          background: #fef2f2;
+          border-color: #fca5a5;
+          transform: translateY(-1px);
+        }
+
         @media (max-width: 900px) {
           .page-shell {
             padding: 28px 18px 48px;
@@ -371,6 +424,10 @@ export default function AdminScenariosPage() {
 
           .cards-grid {
             grid-template-columns: 1fr;
+          }
+
+          .delete-button {
+            width: 100%;
           }
         }
       `}</style>

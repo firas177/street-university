@@ -75,6 +75,37 @@ export async function registerUser(payload) {
   );
 }
 
+export async function forgotPassword(email) {
+  return fetchJson(
+    "/auth/forgot-password",
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ email }),
+    },
+    "Impossible d'envoyer le lien de réinitialisation"
+  );
+}
+
+export async function resetPassword(token, newPassword) {
+  return fetchJson(
+    "/auth/reset-password",
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        token,
+        new_password: newPassword,
+      }),
+    },
+    "Impossible de réinitialiser le mot de passe"
+  );
+}
+
 export async function getMe(token) {
   return fetchJson(
     "/me",
@@ -154,7 +185,7 @@ export async function getScenarios(token) {
   );
 }
 
-export async function startSession(token, scenarioId, durationSeconds = 900) {
+export async function startSession(token, scenarioId, durationSeconds = 60) {
   return fetchJson(
     "/sessions/start",
     {
@@ -358,4 +389,22 @@ export async function deleteMyCV(token) {
     },
     "Impossible de supprimer le CV"
   );
+}
+
+
+export async function deleteScenario(token, scenarioId) {
+  const res = await fetch(`${API_BASE_URL}/scenarios/${scenarioId}`, {
+    method: "DELETE",
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
+
+  const data = await res.json().catch(() => null);
+
+  if (!res.ok) {
+    throw new Error(data?.detail || "Erreur lors de la suppression du scénario");
+  }
+
+  return data;
 }

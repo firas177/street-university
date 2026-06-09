@@ -1,14 +1,17 @@
 "use client";
-
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Navbar from "../components/Navbar";
 import Alert from "../components/ui/Alert";
 import { getScenarios, startSession } from "../lib/api";
 
-const SESSION_DURATION_SECONDS = 60;
-// Version finale PFE :
-// const SESSION_DURATION_SECONDS = 900;
+const DURATION_OPTIONS = [
+  { label: "1 min", value: 60 },
+  { label: "3 min", value: 180 },
+  { label: "5 min", value: 300 },
+  { label: "10 min", value: 600 },
+  { label: "15 min", value: 900 },
+];
 
 function getDifficultyLabel(value) {
   if (value === 1) return "Facile";
@@ -24,6 +27,11 @@ function getDifficultyClass(value) {
   return "standard";
 }
 
+function formatDuration(seconds) {
+  const minutes = Math.floor(seconds / 60);
+  return `${minutes} min`;
+}
+
 export default function ScenariosPage() {
   const router = useRouter();
 
@@ -31,6 +39,7 @@ export default function ScenariosPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [startingId, setStartingId] = useState("");
+  const [selectedDuration, setSelectedDuration] = useState(60);
 
   useEffect(() => {
     async function loadScenarios() {
@@ -70,11 +79,7 @@ export default function ScenariosPage() {
       setStartingId(scenarioId);
       setError("");
 
-      const session = await startSession(
-        token,
-        scenarioId,
-        SESSION_DURATION_SECONDS
-      );
+      const session = await startSession(token, scenarioId, selectedDuration);
 
       if (!session?.id) {
         throw new Error("Session non créée correctement.");
@@ -109,10 +114,32 @@ export default function ScenariosPage() {
                 Entraîne-toi dans des situations professionnelles concrètes avec
                 un agent IA, un temps limité et un feedback exploitable.
               </p>
+
+              <div className="duration-selector">
+                <p className="duration-title">Choisir la durée</p>
+
+                <div className="duration-options">
+                  {DURATION_OPTIONS.map((option) => (
+                    <button
+                      key={option.value}
+                      type="button"
+                      onClick={() => setSelectedDuration(option.value)}
+                      className={
+                        selectedDuration === option.value
+                          ? "duration-button active"
+                          : "duration-button"
+                      }
+                    >
+                      {option.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
             </div>
+
             <div className="hero-panel">
-              <span>Durée</span>
-              <strong>{Math.floor(SESSION_DURATION_SECONDS / 60)} min</strong>
+              <span>Durée sélectionnée</span>
+              <strong>{formatDuration(selectedDuration)}</strong>
               <p>Session chronométrée avec analyse finale.</p>
             </div>
           </section>
@@ -132,28 +159,38 @@ export default function ScenariosPage() {
           ) : (
             <section className="scenario-grid">
               {scenarios.map((scenario, index) => {
-                const difficultyClass = getDifficultyClass(scenario.difficulty);
+                const difficultyClass = getDifficultyClass(
+                  scenario.difficulty
+                );
 
                 return (
                   <article className="scenario-card" key={scenario.id}>
-                    <div className="card-index">{String(index + 1).padStart(2, "0")}</div>
+                    <div className="card-index">
+                      {String(index + 1).padStart(2, "0")}
+                    </div>
+
                     <div className="card-top">
                       <span className="category-badge">
                         {scenario.category || "Général"}
                       </span>
+
                       <span className={`difficulty-badge ${difficultyClass}`}>
                         {getDifficultyLabel(scenario.difficulty)}
                       </span>
                     </div>
 
                     <h2>{scenario.title || "Scénario sans titre"}</h2>
+
                     <p>
                       {scenario.description ||
                         "Aucune description disponible pour ce scénario."}
                     </p>
 
                     <div className="card-footer">
-                      <span>Temps limité : {Math.floor(SESSION_DURATION_SECONDS / 60)} min</span>
+                      <span>
+                        Temps limité : {formatDuration(selectedDuration)}
+                      </span>
+
                       <button
                         onClick={() => handleStartScenario(scenario.id)}
                         disabled={startingId === scenario.id}
@@ -226,6 +263,55 @@ export default function ScenariosPage() {
           color: #dbeafe;
           font-size: 16px;
           line-height: 1.75;
+        }
+
+        .duration-selector {
+          margin-top: 28px;
+          padding: 18px;
+          border: 1px solid rgba(147, 197, 253, 0.2);
+          border-radius: 24px;
+          background: rgba(15, 23, 42, 0.42);
+        }
+
+        .duration-title {
+          margin: 0 0 12px;
+          color: #bfdbfe;
+          font-size: 14px;
+          font-weight: 900;
+          text-transform: uppercase;
+          letter-spacing: 0.08em;
+        }
+
+        .duration-options {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 10px;
+        }
+
+        .duration-button {
+          appearance: none;
+          border: 1px solid rgba(147, 197, 253, 0.24);
+          border-radius: 999px;
+          padding: 10px 16px;
+          background: rgba(255, 255, 255, 0.08);
+          color: #dbeafe;
+          font-family: inherit;
+          font-size: 14px;
+          font-weight: 900;
+          cursor: pointer;
+          transition: transform 0.18s ease, background 0.2s ease, color 0.2s ease;
+        }
+
+        .duration-button:hover {
+          transform: translateY(-2px);
+          background: rgba(255, 255, 255, 0.16);
+        }
+
+        .duration-button.active {
+          background: linear-gradient(135deg, #ffffff, #93c5fd 54%, #22d3ee);
+          color: #0f172a;
+          border-color: transparent;
+          box-shadow: 0 14px 34px rgba(37, 99, 235, 0.26);
         }
 
         .hero-panel,

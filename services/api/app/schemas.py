@@ -26,6 +26,23 @@ class UserLogin(BaseModel):
     password: str
 
 
+class ForgotPasswordRequest(BaseModel):
+    email: EmailStr
+
+
+class ForgotPasswordResponse(BaseModel):
+    message: str
+
+
+class ResetPasswordRequest(BaseModel):
+    token: str
+    new_password: str = Field(min_length=8)
+
+
+class ResetPasswordResponse(BaseModel):
+    message: str
+
+
 class ScenarioCreate(BaseModel):
     title: str
     description: Optional[str] = None
@@ -65,7 +82,7 @@ class ScenarioMiniOut(BaseModel):
 
 class SessionStartIn(BaseModel):
     scenario_id: str
-    duration_seconds: Optional[int] = None
+    duration_seconds: Optional[int] = Field(default=60, ge=60, le=1800)
 
 
 class SessionOut(BaseModel):

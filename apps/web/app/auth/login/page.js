@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import Navbar from "../../components/Navbar";
 import Button from "../../components/ui/Button";
@@ -192,6 +193,20 @@ export default function LoginPage() {
                   boxSizing: "border-box",
                 }}
               />
+            </div>
+
+            <div style={{ textAlign: "right", marginTop: "-4px" }}>
+              <Link
+                href="/forgot-password"
+                style={{
+                  color: "#64748b",
+                  fontSize: "13px",
+                  fontWeight: "600",
+                  textDecoration: "none",
+                }}
+              >
+                Mot de passe oublié ?
+              </Link>
             </div>
 
             <Button

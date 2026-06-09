@@ -11,16 +11,168 @@ import {
 } from "../../../lib/api";
 
 const SORT_OPTIONS = [
-  { value: "average_score", label: "Moyenne" },
-  { value: "communication_average", label: "Communication" },
-  { value: "confidence_average", label: "Confiance" },
-  { value: "clarity_average", label: "Clarté" },
-  { value: "relevance_average", label: "Pertinence" },
-  { value: "professionalism_average", label: "Professionnalisme" },
-  { value: "sessions_count", label: "Sessions" },
+  { value: "average_score", label: "Score global moyen" },
+  { value: "communication_average", label: "Score communication" },
+  { value: "confidence_average", label: "Score confiance" },
+  { value: "clarity_average", label: "Score clarté" },
+  { value: "relevance_average", label: "Score pertinence" },
+  { value: "professionalism_average", label: "Score professionnalisme" },
+  { value: "sessions_count", label: "Nombre de sessions" },
   { value: "completed_sessions_count", label: "Sessions terminées" },
   { value: "created_at", label: "Date de création" },
 ];
+
+const ORDER_OPTIONS = [
+  {
+    value: "desc",
+    label: "Descendant",
+    description: "du plus élevé au plus bas",
+  },
+  {
+    value: "asc",
+    label: "Ascendant",
+    description: "du plus bas au plus élevé",
+  },
+];
+
+const labelClass =
+  "block text-xs font-bold uppercase tracking-widest text-sky-300";
+
+function ChevronIcon({ open }) {
+  return (
+    <svg
+      className={`h-4 w-4 shrink-0 text-cyan-300 transition-transform duration-200 ${
+        open ? "rotate-180" : ""
+      }`}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2.5"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d="m6 9 6 6 6-6" />
+    </svg>
+  );
+}
+
+function FilterDropdown({ id, label, value, options, onChange }) {
+  const [open, setOpen] = useState(false);
+  const selected = options.find((opt) => opt.value === value) || options[0];
+
+  useEffect(() => {
+    if (!open) return undefined;
+
+    function onKeyDown(e) {
+      if (e.key === "Escape") setOpen(false);
+    }
+
+    function onPointerDown(e) {
+      if (!e.target.closest(`[data-dropdown="${id}"]`)) {
+        setOpen(false);
+      }
+    }
+
+    document.addEventListener("keydown", onKeyDown);
+    document.addEventListener("pointerdown", onPointerDown);
+    return () => {
+      document.removeEventListener("keydown", onKeyDown);
+      document.removeEventListener("pointerdown", onPointerDown);
+    };
+  }, [open, id]);
+
+  return (
+    <div className="relative w-full" data-dropdown={id}>
+      <span className={labelClass}>{label}</span>
+      <button
+        type="button"
+        id={id}
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        onClick={() => setOpen((prev) => !prev)}
+        className={`mt-2 flex h-12 w-full items-center justify-between gap-3 rounded-xl border bg-slate-950/90 px-4 text-left shadow-inner transition ${
+          open
+            ? "border-cyan-400 ring-2 ring-cyan-400/35"
+            : "border-slate-500/40 hover:border-slate-400/60"
+        }`}
+      >
+        <span className="min-w-0 flex-1 leading-snug">
+          <span className="block truncate text-sm font-semibold text-slate-100">
+            {selected.label}
+          </span>
+          {selected.description ? (
+            <span className="mt-0.5 block truncate text-xs font-normal text-slate-400">
+              {selected.description}
+            </span>
+          ) : null}
+        </span>
+        <ChevronIcon open={open} />
+      </button>
+
+      {open && (
+        <ul
+          role="listbox"
+          aria-labelledby={id}
+          className="absolute left-0 right-0 top-[calc(100%+6px)] z-50 max-h-[260px] overflow-y-auto rounded-xl border border-slate-500/40 bg-slate-900 py-1 shadow-2xl shadow-slate-950/60"
+        >
+          {options.map((opt) => {
+            const isActive = opt.value === value;
+            return (
+              <li key={opt.value} role="none">
+                <button
+                  type="button"
+                  role="option"
+                  aria-selected={isActive}
+                  onClick={() => {
+                    onChange(opt.value);
+                    setOpen(false);
+                  }}
+                  className={`flex min-h-[44px] w-full items-center px-3 py-2 text-left transition ${
+                    isActive
+                      ? "bg-cyan-500/15 text-cyan-50"
+                      : "text-slate-200 hover:bg-slate-800/90"
+                  }`}
+                >
+                  <span className="min-w-0 flex-1 leading-snug">
+                    <span className="block text-sm font-medium">{opt.label}</span>
+                    {opt.description ? (
+                      <span className="mt-0.5 block text-xs text-slate-400">
+                        {opt.description}
+                      </span>
+                    ) : null}
+                  </span>
+                  {isActive ? (
+                    <span className="ml-2 shrink-0 text-xs font-bold text-cyan-300">
+                      ✓
+                    </span>
+                  ) : null}
+                </button>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+    </div>
+  );
+}
+
+function FilterIcon() {
+  return (
+    <svg
+      className="h-5 w-5 text-cyan-300"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d="M4 6h16M7 12h10M10 18h4" />
+    </svg>
+  );
+}
 
 function formatScore(value) {
   const num = Number(value);
@@ -28,10 +180,57 @@ function formatScore(value) {
   return `${num.toFixed(1)} / 10`;
 }
 
+function scoreNumber(value) {
+  const num = Number(value);
+  if (!Number.isFinite(num)) return null;
+  return num;
+}
+
 function toPercent(value) {
   const num = Number(value);
   if (!Number.isFinite(num)) return 0;
   return Math.max(0, Math.min(100, num * 10));
+}
+
+function scoreTone(value) {
+  const num = scoreNumber(value);
+  if (num === null) return "empty";
+  if (num >= 7) return "high";
+  if (num >= 4) return "mid";
+  return "low";
+}
+
+function ScoreCell({ value, accent = "default" }) {
+  const num = scoreNumber(value);
+  const tone = scoreTone(value);
+
+  if (num === null) {
+    return <span className="score-empty">N/A</span>;
+  }
+
+  return (
+    <div className={`score-cell ${accent} ${tone}`}>
+      <div className="score-head">
+        <strong>{num.toFixed(1)}</strong>
+        <span>/ 10</span>
+      </div>
+      <div className="score-track" aria-hidden="true">
+        <div className="score-fill" style={{ width: `${toPercent(value)}%` }} />
+      </div>
+    </div>
+  );
+}
+
+function SessionScore({ label, value }) {
+  return (
+    <div className={`session-score ${scoreTone(value)}`}>
+      <span>{label}</span>
+      <strong>{formatScore(value)}</strong>
+      <div className="score-track" aria-hidden="true">
+        <div className="score-fill" style={{ width: `${toPercent(value)}%` }} />
+      </div>
+    </div>
+  );
 }
 
 function formatDate(value) {
@@ -217,31 +416,40 @@ export default function AdminUsersPage() {
             </button>
           </section>
 
-          <section className="card controls">
-            <div>
-              <label htmlFor="sortBy">Trier par</label>
-              <select
-                id="sortBy"
-                value={sortBy}
-                onChange={(e) => setSortBy(e.target.value)}
-              >
-                {SORT_OPTIONS.map((opt) => (
-                  <option key={opt.value} value={opt.value}>
-                    {opt.label}
-                  </option>
-                ))}
-              </select>
+          <section
+            className="relative z-20 mb-5 overflow-visible rounded-2xl border border-slate-500/25 bg-gradient-to-br from-slate-900/95 via-slate-900/80 to-slate-800/70 p-5 shadow-2xl shadow-slate-950/50 backdrop-blur-md md:p-6"
+            aria-label="Filtres et tri des utilisateurs"
+          >
+            <div className="mb-4 flex items-start gap-3">
+              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-cyan-500/30 bg-cyan-500/10">
+                <FilterIcon />
+              </div>
+              <div>
+                <h2 className="text-lg font-bold text-slate-50 md:text-xl">
+                  Filtres & tri
+                </h2>
+                <p className="mt-1 max-w-xl text-sm leading-relaxed text-slate-400">
+                  Organisez les utilisateurs selon leurs performances et leur
+                  progression.
+                </p>
+              </div>
             </div>
-            <div>
-              <label htmlFor="order">Ordre</label>
-              <select
+
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 md:gap-5">
+              <FilterDropdown
+                id="sortBy"
+                label="Trier par"
+                value={sortBy}
+                options={SORT_OPTIONS}
+                onChange={setSortBy}
+              />
+              <FilterDropdown
                 id="order"
+                label="Ordre"
                 value={order}
-                onChange={(e) => setOrder(e.target.value)}
-              >
-                <option value="desc">Descendant</option>
-                <option value="asc">Ascendant</option>
-              </select>
+                options={ORDER_OPTIONS}
+                onChange={setOrder}
+              />
             </div>
           </section>
 
@@ -275,19 +483,49 @@ export default function AdminUsersPage() {
                     <tbody>
                       {users.map((u) => (
                         <tr key={u.user_id}>
-                          <td>{u.full_name || "Sans nom"}</td>
-                          <td>{u.email}</td>
+                          <td>
+                            <div className="user-cell">
+                              <span className="avatar">
+                                {(u.full_name || u.email || "?")
+                                  .trim()
+                                  .slice(0, 2)
+                                  .toUpperCase()}
+                              </span>
+                              <span className="user-name">
+                                {u.full_name || "Sans nom"}
+                              </span>
+                            </div>
+                          </td>
+                          <td className="email-cell">{u.email}</td>
                           <td>
                             <span className="role">{u.role}</span>
                           </td>
                           <td>{u.sessions_count ?? 0}</td>
                           <td>{u.completed_sessions_count ?? 0}</td>
-                          <td>{formatScore(u.average_score)}</td>
-                          <td>{formatScore(u.communication_average)}</td>
-                          <td>{formatScore(u.confidence_average)}</td>
-                          <td>{formatScore(u.clarity_average)}</td>
-                          <td>{formatScore(u.relevance_average)}</td>
-                          <td>{formatScore(u.professionalism_average)}</td>
+                          <td>
+                            <ScoreCell value={u.average_score} />
+                          </td>
+                          <td>
+                            <ScoreCell
+                              value={u.communication_average}
+                              accent="communication"
+                            />
+                          </td>
+                          <td>
+                            <ScoreCell
+                              value={u.confidence_average}
+                              accent="confidence"
+                            />
+                          </td>
+                          <td>
+                            <ScoreCell value={u.clarity_average} />
+                          </td>
+                          <td>
+                            <ScoreCell value={u.relevance_average} />
+                          </td>
+                          <td>
+                            <ScoreCell value={u.professionalism_average} />
+                          </td>
                           <td>
                             <button
                               type="button"
@@ -423,24 +661,30 @@ export default function AdminUsersPage() {
                               <span>{formatDate(item.completed_at)}</span>
                             </header>
                             <div className="scores">
-                              <span>
-                                Score global: {formatScore(item.overall_score)}
-                              </span>
-                              <span>
-                                Communication:{" "}
-                                {formatScore(item.communication_score)}
-                              </span>
-                              <span>
-                                Confiance: {formatScore(item.confidence_score)}
-                              </span>
-                              <span>Clarté: {formatScore(item.clarity_score)}</span>
-                              <span>
-                                Pertinence: {formatScore(item.relevance_score)}
-                              </span>
-                              <span>
-                                Professionnalisme:{" "}
-                                {formatScore(item.professionalism_score)}
-                              </span>
+                              <SessionScore
+                                label="Score global"
+                                value={item.overall_score}
+                              />
+                              <SessionScore
+                                label="Communication"
+                                value={item.communication_score}
+                              />
+                              <SessionScore
+                                label="Confiance"
+                                value={item.confidence_score}
+                              />
+                              <SessionScore
+                                label="Clarté"
+                                value={item.clarity_score}
+                              />
+                              <SessionScore
+                                label="Pertinence"
+                                value={item.relevance_score}
+                              />
+                              <SessionScore
+                                label="Professionnalisme"
+                                value={item.professionalism_score}
+                              />
                             </div>
                             <div className="sentiment-row">
                               <span
@@ -596,33 +840,6 @@ export default function AdminUsersPage() {
           font-size: 14px;
         }
 
-        .controls {
-          padding: 16px;
-          display: flex;
-          gap: 14px;
-          margin-bottom: 16px;
-          flex-wrap: wrap;
-        }
-
-        .controls label {
-          display: block;
-          font-size: 13px;
-          color: #93c5fd;
-          margin-bottom: 6px;
-          font-weight: 700;
-        }
-
-        select {
-          appearance: none;
-          border-radius: 12px;
-          border: 1px solid rgba(148, 163, 184, 0.4);
-          background: rgba(15, 23, 42, 0.8);
-          color: #e2e8f0;
-          font-size: 14px;
-          padding: 10px 12px;
-          min-width: 220px;
-        }
-
         .layout {
           display: grid;
           grid-template-columns: 1.5fr 1fr;
@@ -653,7 +870,7 @@ export default function AdminUsersPage() {
           text-align: left;
           font-size: 14px;
           line-height: 1.6;
-          white-space: nowrap;
+          vertical-align: middle;
         }
 
         th {
@@ -661,10 +878,107 @@ export default function AdminUsersPage() {
           color: #93c5fd;
           text-transform: uppercase;
           letter-spacing: 0.04em;
+          white-space: nowrap;
         }
 
         td {
           color: #e2e8f0;
+        }
+
+        .email-cell {
+          font-size: 13px;
+          color: #cbd5e1;
+          max-width: 220px;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
+
+        .user-cell {
+          display: flex;
+          gap: 10px;
+          align-items: center;
+          min-width: 160px;
+        }
+
+        .avatar {
+          width: 36px;
+          height: 36px;
+          border-radius: 12px;
+          display: grid;
+          place-items: center;
+          background: linear-gradient(135deg, #2563eb, #22d3ee);
+          color: #ffffff;
+          font-size: 12px;
+          font-weight: 900;
+          flex-shrink: 0;
+        }
+
+        .user-name {
+          font-weight: 800;
+          color: #f8fafc;
+          white-space: nowrap;
+        }
+
+        .score-cell {
+          min-width: 108px;
+        }
+
+        .score-head {
+          display: flex;
+          align-items: baseline;
+          gap: 4px;
+          margin-bottom: 6px;
+        }
+
+        .score-head strong {
+          color: #f8fafc;
+          font-size: 16px;
+          font-weight: 900;
+        }
+
+        .score-head span {
+          color: #93c5fd;
+          font-size: 12px;
+          font-weight: 700;
+        }
+
+        .score-track {
+          height: 8px;
+          border-radius: 999px;
+          background: rgba(30, 41, 59, 0.9);
+          overflow: hidden;
+        }
+
+        .score-fill {
+          height: 100%;
+          border-radius: inherit;
+          background: linear-gradient(90deg, #0ea5e9, #22d3ee);
+        }
+
+        .score-cell.communication .score-fill {
+          background: linear-gradient(90deg, #3b82f6, #60a5fa);
+        }
+
+        .score-cell.confidence .score-fill {
+          background: linear-gradient(90deg, #8b5cf6, #a78bfa);
+        }
+
+        .score-cell.high .score-head strong {
+          color: #86efac;
+        }
+
+        .score-cell.mid .score-head strong {
+          color: #fde68a;
+        }
+
+        .score-cell.low .score-head strong {
+          color: #fda4af;
+        }
+
+        .score-empty {
+          color: #94a3b8;
+          font-weight: 700;
         }
 
         .role {
@@ -789,6 +1103,11 @@ export default function AdminUsersPage() {
           background: linear-gradient(90deg, #0ea5e9, #22d3ee);
         }
 
+        .bar-head strong {
+          color: #f8fafc;
+          font-size: 15px;
+        }
+
         .sessions-list {
           display: grid;
           gap: 10px;
@@ -825,12 +1144,47 @@ export default function AdminUsersPage() {
         .scores {
           display: grid;
           grid-template-columns: repeat(2, minmax(0, 1fr));
-          gap: 6px;
+          gap: 10px;
         }
 
-        .scores span {
-          font-size: 12px;
-          color: #cbd5e1;
+        .session-score {
+          border: 1px solid rgba(148, 163, 184, 0.22);
+          border-radius: 12px;
+          padding: 10px;
+          background: rgba(2, 6, 23, 0.35);
+        }
+
+        .session-score span {
+          display: block;
+          font-size: 11px;
+          color: #93c5fd;
+          font-weight: 800;
+          text-transform: uppercase;
+          letter-spacing: 0.05em;
+          margin-bottom: 4px;
+        }
+
+        .session-score strong {
+          display: block;
+          color: #f8fafc;
+          font-size: 14px;
+          margin-bottom: 8px;
+        }
+
+        .session-score.high strong {
+          color: #86efac;
+        }
+
+        .session-score.mid strong {
+          color: #fde68a;
+        }
+
+        .session-score.low strong {
+          color: #fda4af;
+        }
+
+        .session-score .score-track {
+          height: 6px;
         }
 
         .sentiment-row {
@@ -905,10 +1259,6 @@ export default function AdminUsersPage() {
 
           .scores {
             grid-template-columns: 1fr;
-          }
-
-          select {
-            min-width: 180px;
           }
         }
       `}</style>

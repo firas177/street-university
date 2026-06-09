@@ -52,11 +52,18 @@ export default function ProfilePage() {
 
           <section className="hero-card">
             <div>
-              <p className="eyebrow">Profil étudiant</p>
-              <h1>{loading ? "Chargement du profil..." : "Compte et CV IA"}</h1>
-              <p>
-                Gérez les informations du compte et accédez au profil CV utilisé
-                par Street University pour personnaliser les simulations.
+              <p className="eyebrow">Mon compte</p>
+              <h1>
+                {loading
+                  ? "Chargement du profil..."
+                  : profile?.full_name
+                    ? `${profile.full_name}`
+                    : "Mon compte Street University"}
+              </h1>
+              <p className="hero-lead">
+                {profile?.full_name
+                  ? "Gérez votre compte et votre CV IA pour des simulations personnalisées."
+                  : "Gérez les informations du compte et accédez au profil CV utilisé par Street University pour personnaliser les simulations."}
               </p>
             </div>
 
@@ -85,6 +92,12 @@ export default function ProfilePage() {
                 <span className={`plan-badge ${isPremium ? "premium" : "free"}`}>
                   {isPremium ? "Premium" : "Free"}
                 </span>
+              </section>
+
+              <section className="name-highlight">
+                <p className="eyebrow">Identité</p>
+                <h2 className="display-name">{profile?.full_name || "Nom non renseigné"}</h2>
+                <p className="name-meta">{profile?.email || "—"}</p>
               </section>
 
               <section className="info-grid">
@@ -163,12 +176,39 @@ export default function ProfilePage() {
           font-weight: 950;
         }
 
+        .hero-lead,
         .hero-card p,
         .plan-card p {
           color: #dbeafe;
           font-size: 16px;
           line-height: 1.75;
           margin: 14px 0 0;
+        }
+
+        .name-highlight {
+          border: 1px solid rgba(147, 197, 253, 0.22);
+          border-radius: 30px;
+          padding: 28px 34px;
+          margin-bottom: 18px;
+          background:
+            linear-gradient(145deg, rgba(37, 99, 235, 0.28), rgba(15, 23, 42, 0.72)),
+            rgba(255, 255, 255, 0.06);
+          box-shadow: 0 28px 90px rgba(2, 6, 23, 0.28);
+        }
+
+        .display-name {
+          margin: 10px 0 6px;
+          font-size: clamp(32px, 5vw, 52px);
+          line-height: 1.05;
+          font-weight: 950;
+          color: #ffffff;
+        }
+
+        .name-meta {
+          margin: 0;
+          color: #93c5fd;
+          font-size: 16px;
+          font-weight: 700;
         }
 
         .action-panel {

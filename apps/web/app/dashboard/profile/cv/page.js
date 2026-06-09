@@ -9,7 +9,85 @@ import {
   structureMyCV,
   getMyCVProfile,
   deleteMyCV,
+  getProfile,
 } from "../../../lib/api";
+
+const SOFT_SKILL_HINTS = [
+  "communication",
+  "teamwork",
+  "leadership",
+  "confiance",
+  "confidence",
+  "collaboration",
+  "adaptability",
+  "problem solving",
+  "creativity",
+  "empathy",
+  "organisation",
+  "organization",
+  "gestion",
+  "management",
+  "interpersonal",
+  "volunteering",
+  "bénévolat",
+];
+
+function formatCategoryLabel(key) {
+  return String(key || "")
+    .replace(/_/g, " ")
+    .replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
+function guessCvDisplayName(cv, account) {
+  if (account?.full_name?.trim()) return account.full_name.trim();
+
+  const text = cv?.extracted_text || "";
+  const line = text
+    .split(/\r?\n/)
+    .map((l) => l.trim())
+    .find(
+      (l) =>
+        l.length >= 3 &&
+        l.length <= 80 &&
+        !l.includes("@") &&
+        !/^https?:\/\//i.test(l) &&
+        !/^\d/.test(l)
+    );
+
+  return line || null;
+}
+
+function partitionCertifications(items) {
+  if (!Array.isArray(items)) return { certifications: [], softSkills: [] };
+
+  const certifications = [];
+  const softSkills = [];
+
+  for (const item of items) {
+    const lower = String(item || "").toLowerCase();
+    const isSoft = SOFT_SKILL_HINTS.some((hint) => lower.includes(hint));
+    if (isSoft) softSkills.push(item);
+    else certifications.push(item);
+  }
+
+  return { certifications, softSkills };
+}
+
+function renderChipList(items) {
+  if (!Array.isArray(items) || items.length === 0) {
+    return <p className="cv-muted">Aucune donnée détectée.</p>;
+  }
+
+  return (
+    <div className="chip-list">
+      {items.map((item, index) => (
+        <span key={`${item}-${index}`} className="chip">
+          {item}
+        </span>
+      ))}
+    </div>
+  );
+}
 
 function formatDate(value) {
   if (!value) return "Non disponible";
@@ -26,11 +104,11 @@ function formatDate(value) {
 
 function renderList(items) {
   if (!Array.isArray(items) || items.length === 0) {
-    return <p className="muted">Aucune donnée détectée.</p>;
+    return <p className="cv-muted">Aucune donnée détectée.</p>;
   }
 
   return (
-    <ul>
+    <ul className="cv-list">
       {items.map((item, index) => (
         <li key={`${item}-${index}`}>{item}</li>
       ))}
@@ -43,6 +121,7 @@ export default function CVPage() {
 
   const [cv, setCv] = useState(null);
   const [profile, setProfile] = useState(null);
+  const [account, setAccount] = useState(null);
   const [selectedFile, setSelectedFile] = useState(null);
 
   const [loading, setLoading] = useState(true);
@@ -77,6 +156,13 @@ export default function CVPage() {
         setProfile(profileData?.profile || null);
       } catch {
         setProfile(null);
+      }
+
+      try {
+        const accountData = await getProfile(token);
+        setAccount(accountData || null);
+      } catch {
+        setAccount(null);
       }
     } finally {
       setLoading(false);
@@ -170,6 +256,11 @@ export default function CVPage() {
     }
   }
 
+  const displayName = guessCvDisplayName(cv, account);
+  const { certifications, softSkills } = partitionCertifications(
+    profile?.certifications
+  );
+
   return (
     <div className="page-root">
       <Navbar />
@@ -187,8 +278,10 @@ export default function CVPage() {
 
         <section className="hero-card">
           <div>
-            <p className="eyebrow">CV intelligent</p>
-            <h1>CV & profil structuré</h1>
+            <p className="eyebrow">Mon espace CV</p>
+            <h1>
+              {displayName ? `${displayName} — CV IA` : "Mon CV & profil structuré"}
+            </h1>
             <p className="description">
               Ajoutez votre CV pour permettre à l’agent IA de poser des questions plus précises pendant les simulations.
               Si aucun CV n’est ajouté, la simulation reste normale.
@@ -286,24 +379,45 @@ export default function CVPage() {
             )}
 
             {profile && (
-              <section className="profile-card">
-                <div className="section-title">
-                  <p className="eyebrow">Profil structuré</p>
-                  <h2>Analyse automatique du CV</h2>
+              <section className="profile-card cv-readable">
+                <div className="profile-identity">
+                  <div className="identity-avatar" aria-hidden="true">
+                    {(displayName || account?.email || "?")
+                      .trim()
+                      .slice(0, 2)
+                      .toUpperCase()}
+                  </div>
+                  <div>
+                    <p className="eyebrow">Profil structuré</p>
+                    <h2>{displayName || "Analyse automatique du CV"}</h2>
+                    <p className="identity-sub">
+                      {account?.email || profile.contact?.email || "Email non détecté"}
+                    </p>
+                  </div>
                 </div>
 
                 <div className="profile-grid">
                   <div className="profile-box full">
                     <h3>Résumé professionnel</h3>
-                    <p>{profile.professional_summary || "Non disponible."}</p>
+                    <p className="cv-text">
+                      {profile.professional_summary || "Non disponible."}
+                    </p>
                   </div>
 
                   <div className="profile-box">
                     <h3>Contact</h3>
-                    <p>Email : {profile.contact?.email || "Non détecté"}</p>
-                    <p>Téléphone : {profile.contact?.phone || "Non détecté"}</p>
-                    <p>GitHub : {profile.contact?.github || "Non détecté"}</p>
-                    <p>LinkedIn : {profile.contact?.linkedin || "Non détecté"}</p>
+                    <p className="cv-text">
+                      Email : {profile.contact?.email || "Non détecté"}
+                    </p>
+                    <p className="cv-text">
+                      Téléphone : {profile.contact?.phone || "Non détecté"}
+                    </p>
+                    <p className="cv-text">
+                      GitHub : {profile.contact?.github || "Non détecté"}
+                    </p>
+                    <p className="cv-text">
+                      LinkedIn : {profile.contact?.linkedin || "Non détecté"}
+                    </p>
                   </div>
 
                   <div className="profile-box">
@@ -334,7 +448,7 @@ export default function CVPage() {
                         {Object.entries(profile.technical_skills).map(
                           ([category, skills]) => (
                             <div key={category} className="skill-category">
-                              <strong>{category}</strong>
+                              <strong>{formatCategoryLabel(category)}</strong>
                               {renderList(skills)}
                             </div>
                           )
@@ -345,9 +459,16 @@ export default function CVPage() {
                     )}
                   </div>
 
+                  {softSkills.length > 0 && (
+                    <div className="profile-box full soft-skills-box">
+                      <h3>Qualités & soft skills</h3>
+                      {renderChipList(softSkills)}
+                    </div>
+                  )}
+
                   <div className="profile-box full">
                     <h3>Certifications</h3>
-                    {renderList(profile.certifications)}
+                    {renderList(certifications)}
                   </div>
                 </div>
               </section>
@@ -431,10 +552,45 @@ export default function CVPage() {
           line-height: 1.75;
         }
 
-        .muted {
+        .muted,
+        .cv-muted {
           color: #c7d2fe;
           font-size: 15px;
           line-height: 1.65;
+        }
+
+        .cv-readable {
+          color: #e8f0fe;
+        }
+
+        .profile-identity {
+          display: flex;
+          gap: 16px;
+          align-items: center;
+          margin-bottom: 22px;
+          padding-bottom: 20px;
+          border-bottom: 1px solid rgba(147, 197, 253, 0.22);
+        }
+
+        .identity-avatar {
+          width: 64px;
+          height: 64px;
+          border-radius: 20px;
+          display: grid;
+          place-items: center;
+          background: linear-gradient(135deg, #2563eb, #22d3ee);
+          color: #ffffff;
+          font-size: 22px;
+          font-weight: 950;
+          flex-shrink: 0;
+          box-shadow: 0 16px 40px rgba(37, 99, 235, 0.35);
+        }
+
+        .identity-sub {
+          margin: 8px 0 0;
+          color: #93c5fd;
+          font-size: 15px;
+          font-weight: 700;
         }
 
         .upload-form {
@@ -604,19 +760,55 @@ export default function CVPage() {
           grid-column: 1 / -1;
         }
 
-        .profile-box p {
-          color: #dbeafe;
+        .cv-text,
+        .profile-box p,
+        .profile-box li,
+        .cv-list,
+        .cv-list li {
+          color: #e8f0fe !important;
           line-height: 1.75;
           font-size: 15px;
+        }
+
+        .profile-box p {
           margin: 6px 0;
         }
 
-        ul {
+        .cv-list {
           margin: 0;
           padding-left: 18px;
-          color: #dbeafe;
-          line-height: 1.75;
-          font-size: 15px;
+        }
+
+        .chip-list {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 10px;
+        }
+
+        .chip {
+          display: inline-flex;
+          align-items: center;
+          min-height: 36px;
+          padding: 8px 14px;
+          border-radius: 999px;
+          background: linear-gradient(
+            135deg,
+            rgba(37, 99, 235, 0.35),
+            rgba(34, 211, 238, 0.2)
+          );
+          border: 1px solid rgba(147, 197, 253, 0.45);
+          color: #f8fafc;
+          font-size: 14px;
+          font-weight: 800;
+          line-height: 1.4;
+        }
+
+        .soft-skills-box {
+          background: linear-gradient(
+            145deg,
+            rgba(30, 64, 175, 0.35),
+            rgba(15, 23, 42, 0.55)
+          );
         }
 
         .skills-grid {
@@ -634,7 +826,7 @@ export default function CVPage() {
 
         .skill-category strong {
           display: block;
-          color: #ffffff;
+          color: #f8fafc !important;
           margin-bottom: 8px;
           font-size: 16px;
         }

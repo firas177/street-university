@@ -3,9 +3,18 @@ from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import func, case, desc, asc
 from sqlalchemy.sql import nullslast
+
 from datetime import datetime, timezone, timedelta
+import logging
+import os
 import re
 import json
+
+logger = logging.getLogger(__name__)
+
+FORGOT_PASSWORD_GENERIC_MESSAGE = (
+    "Si cet email existe, un lien de réinitialisation a été envoyé."
+)
 
 from .audio_service import transcribe_uploaded_audio, AudioTranscriptionError
 from .db import engine, Base, get_db
@@ -14,6 +23,7 @@ from .jwt_utils import create_access_token
 from .ai_service import generate_ai_reply, generate_session_feedback
 from .schemas import UserLogin
 from . import models, schemas, auth
+from .services.email_service import EmailServiceError, send_password_reset_email
 
 from .cv_service import (
     validate_cv_file,
@@ -456,7 +466,7 @@ def build_cv_context_for_ai(profile: dict | None) -> str:
     skills = flatten_cv_skills(profile)
 
     return f"""
-PROFIL CV DU CANDIDAT DISPONIBLE :
+CONTEXTE CV OPTIONNEL DE L'UTILISATEUR :
 
 Résumé professionnel :
 {summary}
@@ -479,16 +489,15 @@ Certifications :
 Langues :
 {languages}
 
-CONSIGNES IMPORTANTES :
-- Utilise ce CV pour poser des questions précises et personnalisées.
-- Ne pose pas seulement des questions générales.
-- Pose une seule question à la fois.
-- Vérifie si le candidat comprend vraiment ce qu’il a écrit dans son CV.
-- Demande-lui d’expliquer ses projets, ses choix techniques, son rôle, ses difficultés et ses résultats.
-- Ne donne pas les réponses à sa place.
+CONSIGNES IMPORTANTES SUR LE CV :
+- Le scénario actuel reste toujours prioritaire.
+- Le CV est seulement un contexte supplémentaire.
+- N'utilise le CV que si cela aide réellement le scénario.
+- Ne transforme jamais un scénario pitch, investisseur, négociation, conflit, vente ou leadership en entretien RH.
+- Si le scénario est un entretien d'embauche, tu peux poser des questions précises sur le CV.
+- Si le scénario est un pitch investisseur, utilise le CV seulement comme contexte secondaire, mais commence par le projet, le problème, la cible, le marché et la valeur ajoutée.
 - Si une information n’est pas dans le CV, ne l’invente pas.
-- Si le candidat donne une réponse vague, demande une clarification concrète.
-- Si aucun CV n’est disponible, fais une simulation normale.
+- Si l'utilisateur donne une réponse vague, demande une clarification concrète.
 """.strip()
 
 
@@ -498,31 +507,136 @@ def build_system_prompt_with_optional_cv(
 ) -> str:
     cv_context = build_cv_context_for_ai(cv_profile)
 
+    scenario_priority_rules = """
+RÈGLE DE PRIORITÉ ABSOLUE :
+- Le scénario actuel définit ton rôle principal.
+- Le CV ne doit jamais changer ton rôle.
+- Si le scénario dit que tu es investisseur, tu restes investisseur.
+- Si le scénario dit que tu es client, tu restes client.
+- Si le scénario dit que tu es collègue, tu restes collègue.
+- Si le scénario dit que tu es recruteur, tu restes recruteur.
+- Le CV sert seulement à personnaliser certaines questions quand c'est pertinent.
+""".strip()
+
     if not cv_context:
-        return base_system_prompt
+        return f"""
+{base_system_prompt}
+
+{scenario_priority_rules}
+""".strip()
 
     return f"""
 {base_system_prompt}
+
+{scenario_priority_rules}
 
 {cv_context}
 """.strip()
 
 
-def build_first_prompt_with_optional_cv(cv_profile: dict | None) -> str:
-    if cv_profile:
+def build_first_prompt_with_optional_cv(
+    cv_profile: dict | None,
+    scenario_title: str = "",
+    scenario_category: str = "",
+    scenario_system_prompt: str = "",
+) -> str:
+    scenario_text = " ".join([
+        scenario_title or "",
+        scenario_category or "",
+        scenario_system_prompt or "",
+    ]).lower()
+
+    is_pitch = any(
+        keyword in scenario_text
+        for keyword in [
+            "pitch",
+            "investisseur",
+            "investor",
+            "startup",
+            "entrepreneuriat",
+            "business model",
+            "financement",
+            "marché",
+            "market",
+        ]
+    )
+
+    is_interview = any(
+        keyword in scenario_text
+        for keyword in [
+            "entretien",
+            "recruteur",
+            "recrutement",
+            "job interview",
+            "embauche",
+            "candidat",
+            "cv",
+        ]
+    )
+
+    is_conflict = any(
+        keyword in scenario_text
+        for keyword in [
+            "conflit",
+            "équipe",
+            "team conflict",
+            "leadership",
+            "collègue",
+            "manager",
+        ]
+    )
+
+    is_negotiation = any(
+        keyword in scenario_text
+        for keyword in [
+            "négociation",
+            "negotiation",
+            "vente",
+            "client",
+            "commercial",
+        ]
+    )
+
+    if is_pitch:
         return (
-            "Commence immédiatement la simulation. "
+            "Commence immédiatement la simulation comme un investisseur professionnel. "
+            "Ne parle pas du CV au début, même s'il existe. "
+            "Ne pose pas une question d'entretien RH. "
+            "Demande à l'utilisateur de présenter son idée de projet en quelques phrases, "
+            "en précisant le problème, la cible, la solution et la valeur ajoutée. "
+            "Une seule question à la fois."
+        )
+
+    if is_conflict:
+        return (
+            "Commence immédiatement la simulation dans le rôle prévu par le scénario de conflit ou leadership. "
+            "Ne parle pas du CV au début. "
+            "Présente brièvement la situation de tension, puis demande à l'utilisateur quelle première action concrète il prendrait. "
+            "Une seule question à la fois."
+        )
+
+    if is_negotiation:
+        return (
+            "Commence immédiatement la simulation dans le rôle prévu par le scénario de négociation ou de vente. "
+            "Ne parle pas du CV au début. "
+            "Présente brièvement la situation, puis pose une première objection ou question réaliste. "
+            "Une seule question à la fois."
+        )
+
+    if is_interview and cv_profile:
+        return (
+            "Commence immédiatement la simulation d'entretien. "
             "Le candidat a fourni un CV. "
-            "Analyse son profil et pose une première question spécifique basée sur un projet, "
-            "une compétence technique, une expérience, une formation ou une certification mentionnée dans son CV. "
-            "Ne pose pas une question générale si tu peux poser une question personnalisée. "
+            "Pose une première question spécifique basée sur un projet, une compétence, une expérience, "
+            "une formation ou une certification mentionnée dans son CV. "
             "Ne donne pas la réponse. "
             "Une seule question à la fois."
         )
 
     return (
-        "Commence immédiatement la simulation. "
-        "Présente brièvement le contexte puis pose une première question claire. "
+        "Commence immédiatement la simulation en respectant strictement le scénario actuel. "
+        "Présente brièvement le contexte puis pose une première question claire et adaptée au rôle. "
+        "Ne parle pas du CV sauf si le scénario est un entretien ou si le CV est vraiment pertinent. "
         "Ne donne pas la réponse. "
         "Une seule question à la fois."
     )
@@ -608,6 +722,51 @@ def login(payload: UserLogin, db: Session = Depends(get_db)):
         "access_token": token,
         "token_type": "bearer",
     }
+
+
+@app.post("/auth/forgot-password", response_model=schemas.ForgotPasswordResponse)
+def forgot_password(
+    payload: schemas.ForgotPasswordRequest,
+    db: Session = Depends(get_db),
+):
+    user = auth.get_user_by_email(db, payload.email)
+
+    if user:
+        raw_token = auth.create_password_reset_token(db, user)
+        try:
+            send_password_reset_email(user.email, raw_token)
+        except EmailServiceError as exc:
+            logger.error(
+                "Échec envoi email de réinitialisation pour %s: %s",
+                payload.email,
+                exc,
+            )
+
+    return schemas.ForgotPasswordResponse(message=FORGOT_PASSWORD_GENERIC_MESSAGE)
+
+
+@app.post("/auth/reset-password", response_model=schemas.ResetPasswordResponse)
+def reset_password(
+    payload: schemas.ResetPasswordRequest,
+    db: Session = Depends(get_db),
+):
+    if len(payload.new_password) < 8:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Le mot de passe doit contenir au moins 8 caractères.",
+        )
+
+    user = auth.reset_password_with_token(db, payload.token, payload.new_password)
+
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Lien de réinitialisation invalide ou expiré.",
+        )
+
+    return schemas.ResetPasswordResponse(
+        message="Mot de passe réinitialisé avec succès."
+    )
 
 
 @app.get("/auth/me")
@@ -1419,8 +1578,8 @@ def start_session(
     if not scenario:
         raise HTTPException(status_code=404, detail="Scenario introuvable")
 
-    duration_seconds = safe_duration_seconds(payload.duration_seconds)
-    started_at = now_utc()
+    duration_seconds = payload.duration_seconds or 60
+    started_at = datetime.now(timezone.utc)
     expires_at = started_at + timedelta(seconds=duration_seconds)
 
     session = models.Session(
@@ -1444,7 +1603,12 @@ def start_session(
         base_system_prompt=scenario.system_prompt,
     )
 
-    first_prompt = build_first_prompt_with_optional_cv(cv_profile)
+    first_prompt = build_first_prompt_with_optional_cv(
+        cv_profile=cv_profile,
+        scenario_title=scenario.title,
+        scenario_category=scenario.category,
+        scenario_system_prompt=scenario.system_prompt,
+    )
 
     assistant_text = generate_ai_reply(
         system_prompt=enhanced_system_prompt,
@@ -1923,3 +2087,39 @@ async def send_voice_message(
         "user_message": message_to_dict(user_msg),
         "assistant_message": message_to_dict(assistant_msg),
     }
+
+
+@app.delete("/scenarios/{scenario_id}")
+def delete_scenario(
+    scenario_id: str,
+    db: Session = Depends(get_db),
+    current_user=Depends(require_roles("admin")),
+):
+    scenario = (
+        db.query(models.Scenario)
+        .filter(models.Scenario.id == scenario_id)
+        .first()
+    )
+
+    if not scenario:
+        raise HTTPException(status_code=404, detail="Scénario introuvable")
+
+    used_sessions = (
+        db.query(models.Session)
+        .filter(models.Session.scenario_id == scenario_id)
+        .count()
+    )
+
+    if used_sessions > 0:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "Impossible de supprimer ce scénario car il est déjà utilisé "
+                "dans des sessions."
+            ),
+        )
+
+    db.delete(scenario)
+    db.commit()
+
+    return {"message": "Scénario supprimé avec succès"}
